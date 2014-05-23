@@ -1,0 +1,6 @@
+*.mli
+*.cmi
+*.cmo
+typer
+lexer.ml
+parser.ml
