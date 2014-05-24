@@ -15,7 +15,7 @@
 %start main
 %token EOF
 %token OP CL
-%token EQ COMMA PIPE ARR
+%token EQ COMMA PIPE ARR USCO
 %token IF THEN ELSE FUN LET IN MATCH WITH
 %token PLUS MINUS MULT DIV
 %token <int> INT
@@ -81,6 +81,7 @@ arm:
     ;
 
 pattern:
+    | USCO                          { PatWildcard }
     | ID                            { PatVar $1 }
     | OP tuple_pat CL               { PatTup $2 }
     | INT                           { PatCst $1 }

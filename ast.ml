@@ -16,6 +16,7 @@ type bin_op =
  *)
 type pattern =
   | PatUnit
+  | PatWildcard
   | PatCst  of int
   | PatVar  of string
   | PatCtor of string * pattern
@@ -45,6 +46,7 @@ let binop_to_string op = match op with
 
 let rec pat_to_string pat = match pat with
   | PatUnit             -> "(unit)"
+  | PatWildcard         -> "_"
   | PatCst i            -> Printf.sprintf "(%s)" (string_of_int i)
   | PatVar v            -> Printf.sprintf "(%s)" v
   | PatCtor (str, arg)  -> Printf.sprintf "(%s %s)" str (pat_to_string arg)

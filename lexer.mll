@@ -36,6 +36,7 @@ rule token = parse
 | ','               { COMMA }
 | '|'               { PIPE }
 | "->"              { ARR }
+| '_'               { USCO }
 | '+'               { PLUS }
 | '-'               { MINUS }
 | '*'               { MULT }
