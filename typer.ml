@@ -40,14 +40,23 @@ type equ = (ty * ty)
 type equ_sys = equ list
 
 (*
- * TODO:
  * Type the pattern of a let form or a function argument
  * Returns:
  *  - the type of the whole pattern
  *  - a type environment for bindings defined in the pattern
  *)
-let rec pat_typer pat =
-    failwith "not implemented"
+let rec pat_typer pat = match pat with
+  | PatUnit  -> (TUnit, [])
+  | PatCst _ -> (TInt, [])
+  | PatVar v ->
+      let ty = TVar (next_var ()) in
+      (ty, [(v, ty)])
+  | PatCtor (name, pat) ->
+      let (pat_ty, pat_env) = pat_typer pat in
+      (TSum [(name, pat_ty)], pat_env)
+  | PatTup pats ->
+      let (types, env_list) = List.split (List.map pat_typer pats) in
+      (TTuple types, List.flatten env_list)
 
 (*
  * Infers the type of an expression
@@ -70,7 +79,7 @@ let rec typer env ast = match ast with
        *  - type e2 in t2, with the pattern in the environment
        *  - return t2, add t1 = tpat as constraint
        *)
-      let (ty_pat, nenv)      = pat_typer pat in
+      let (ty_pat, nenv)      = pat_typer pat  in
       let (ty_expr, sys)      = typer env expr in
       let (ty_body, sys_body) = typer (nenv @ env) body in
       (ty_body, (ty_expr, ty_pat) :: sys @ sys_body)
@@ -91,8 +100,8 @@ let rec typer env ast = match ast with
        *  - add constraint t2 = t3
        *  - add constraint t1 = int
        *)
-      let (ty_econd, sys_cond)   = typer env econd in
-      let (ty_etrue, sys_true)   = typer env etrue in
+      let (ty_econd, sys_cond)   = typer env econd  in
+      let (ty_etrue, sys_true)   = typer env etrue  in
       let (ty_efalse, sys_false) = typer env efalse in
       let sys = sys_cond @ sys_true @ sys_false in
       (ty_etrue, (ty_econd, TInt) :: (ty_etrue, ty_efalse) :: sys)
@@ -121,9 +130,34 @@ let rec typer env ast = match ast with
        *  - add constraint tf = te -> tr
        *)
       let (ty_func, sys_func) = typer env func in
-      let (ty_arg, sys_arg)   = typer env arg in
+      let (ty_arg, sys_arg)   = typer env arg  in
       let ty_ret = TVar (next_var ()) in
       (ty_ret, (TFunc (ty_arg, ty_ret), ty_func) :: sys_func @ sys_arg)
   | _ ->
       (* TODO: implement match and sum types *)
       failwith "unimplemented"
+
+let rec ty_to_string ty = match ty with
+  | TUnit                    -> "*unit*" ;
+  | TInt                     -> "int" ;
+  | TVar v                   -> Printf.sprintf "a%d" v
+  | TTuple []                -> failwith "empty tuple"
+  | TTuple (car :: cdr)      -> Printf.sprintf
+                                    "(%s)"
+                                    (List.fold_left
+                                        (fun res ty -> (Printf.sprintf
+                                                           "%s, %s" res
+                                                           (ty_to_string ty)))
+                                        (ty_to_string car) cdr)
+  | TFunc (arg, res)         -> Printf.sprintf "%s -> %s" (ty_to_string arg)
+                                                  (ty_to_string res)
+  | TSum []                  -> failwith "empty sum type"
+  | TSum ((ctor, ty) :: cdr) -> Printf.sprintf
+                                    "(%s)"
+                                    (List.fold_left
+                                        (fun res (ctor, ty) ->
+                                            (Printf.sprintf "%s | Ctor%s %s"
+                                                            res ctor
+                                                            (ty_to_string ty)))
+                                        (Printf.sprintf "Ctor%s %s" ctor
+                                                        (ty_to_string ty)) cdr)
