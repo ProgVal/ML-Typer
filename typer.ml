@@ -48,6 +48,9 @@ type equ_sys = equ list
 let rec pat_typer pat = match pat with
   | PatUnit  -> (TUnit, [])
   | PatCst _ -> (TInt, [])
+  | PatWildcard ->
+     let ty = TVar (next_var ()) in
+     (ty, [])
   | PatVar v ->
       let ty = TVar (next_var ()) in
       (ty, [(v, ty)])
