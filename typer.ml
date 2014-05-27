@@ -81,9 +81,16 @@ let rec typer env ast = match ast with
        *  - type e1 in t1
        *  - type e2 in t2, with the pattern in the environment
        *  - return t2, add t1 = tpat as constraint
+       * features recursive definition by default
        *)
       let (ty_pat, nenv)      = pat_typer pat  in
+      (* [t] : I might not be completely sure, but I think the change
       let (ty_expr, sys)      = typer env expr in
+      to
+      let (ty_expr, sys)      = typer (nenv @ env) expr in
+      is sufficient to support recursive definition (at least in the typer)
+      the rest should be handled by the unification *)
+      let (ty_expr, sys)      = typer (nenv @ env) expr in
       let (ty_body, sys_body) = typer (nenv @ env) body in
       (ty_body, (ty_expr, ty_pat) :: sys @ sys_body)
   | Fun (pat, body) ->
