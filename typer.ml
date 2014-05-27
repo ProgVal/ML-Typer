@@ -121,6 +121,26 @@ let rec typer env ast = match ast with
       let (ty_opl, sys_l) = typer env opl in
       let (ty_opr, sys_r) = typer env opr in
       (TInt, (ty_opl, TInt) :: (ty_opr, TInt) :: sys_l @ sys_r)
+  | Match (expr, (car :: cdr)) ->
+      (*
+       * typing of a match expr with ...
+       *  - type expr into ty_expr
+       *  - type each arm t into ty_t with the pattern in the environment
+       *  - add the constraint that ty_0 = ty_1 ... = ty_n
+       *  - add the constraint that each pattern has the same type
+       *  - add the constraint that ty_expr = type of the patterns
+       *  - the final type is ty_0
+       *)
+      let type_arm (pat, ast) =
+          let (ty_pat, nenv)  = pat_typer pat          in
+          let (ty_arm, sys)   = typer (nenv @ env) ast in
+          (ty_pat, ty_arm, sys) in
+      let (ty_expr, sys_expr) = typer env expr in
+      let (ty_pat_car, ty_arm_car, sys_car) = type_arm car in
+      let sys = List.flatten (List.map (fun arm ->
+          let (ty_pat, ty_arm, sys) = type_arm arm in
+          (ty_pat_car, ty_pat) :: (ty_arm_car, ty_arm) :: sys) cdr) in
+      (ty_arm_car, (ty_pat_car, ty_expr) :: sys)
   | Apply (func, arg) ->
       (*
        * typing of a function application (f e)
