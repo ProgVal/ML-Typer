@@ -236,36 +236,22 @@ let rec occur_check x t = match t with
  *)
 exception ImpossibleToUnify
 
-(*
- * Apply the unification rules on the first equation of sys. 
- * Return a system and a flag (`Touched or `Untouched) noticing if
- * other equations in the system have been modified/added.
- * Is the use of polymorphic variants really relevant there ?
- *)
-let treat_first sys = match sys with
-  | [] -> ([], `Untouched)
+let rec get_var_eq se = match se with
+  | [] -> None
   | eq :: rest -> (
     match eq with
-    (* 
-     * variables
-     *)
-    | (TVar v1, TVar v2) when v1 = v2  -> (rest, `Untouched)
-    (* TODO : to be modified !! *)
+    (* same varables ; remove the equation *)
+    | (TVar v1, TVar v2) when v1 = v2  -> get_var_eq rest
+    (* variable to be substituted *)
     | (TVar v, t) | (t, TVar v)        ->
-        if occur_check v t
-        then failwith "Unimplemented"
-        else List.fold_left
-                (fun (se, flag) (ty1, ty2) ->
-                 if occur_check v ty1 || occur_check v ty2 then
-                   ((subst t v ty1, subst t v ty2)::se, `Touched)
-                 else ((ty1, ty2)::se, flag)) ([], `Untouched) rest
+                     Some ((v, t), rest)
     (*
      * constants
      * must be put after the variables, otherwise, the _ would match it
      *)
-    | (TUnit, TUnit)                           -> (rest, `Untouched)
+    | (TUnit, TUnit)                           -> get_var_eq rest
     | (TUnit, _)                               -> raise ImpossibleToUnify
-    | (TInt, TInt)                             -> (rest, `Untouched)
+    | (TInt, TInt)                             -> get_var_eq rest
     | (TInt, _)                                -> raise ImpossibleToUnify
     | (TSum l1, TSum l2)                       -> failwith "Unimplemented"
     | (TSum _, _)                              -> raise ImpossibleToUnify
@@ -274,37 +260,20 @@ let treat_first sys = match sys with
      *)
     | (TTuple l1, TTuple l2)                   ->
        ( try
-           (List.rev_append (List.combine l1 l2) rest, `Touched)
+           get_var_eq (List.rev_append (List.combine l1 l2) rest)
           with Invalid_argument "List.combine" -> raise ImpossibleToUnify
          )
     | (TTuple _, _)                            -> raise ImpossibleToUnify
     | (TFunc (arg1, res1), TFunc (arg2, res2)) ->
-       ((arg1, arg2)::(res1, res2)::rest, `Touched)
+       get_var_eq ((arg1, arg2)::(res1, res2)::rest)
     | (TFunc _, _)                             -> raise ImpossibleToUnify
   )
 
-
-(*
- * The unification function. It returns an assoc list (variables, type)
- *)
-let rec unify se =
-  let finalise se =
-    List.map (fun x -> match x with
-    | (TVar v, t) -> (v, t)
-    | _ -> failwith "ICE : should never happend with a correct unification algorithm") se
-  in 
-  let rec split se = match se with
-    | [] -> ([], [])
-    | (TVar v, t)::rest
-    | (t, TVar v)::rest -> let (veqs, eqs) = split rest in
-                           ((TVar v, t)::veqs, eqs)
-    | h :: rest         -> let (veqs, eqs) = split rest in
-                           (veqs, h::rest)
-  in match treat_first se with
-     | (sys, `Untouched) ->
-        ( match split sys with
-          | (_, []) -> finalise sys
-          | (veqs, eqs) -> unify (List.rev_append eqs veqs)
-        )
-     | (sys, `Touched) -> unify sys
-
+(* TODO comment *)
+let unify se =
+  let rec aux solved current = match get_var_eq current with
+  | None -> solved
+  | Some ((v, ty), sys) ->
+     aux ((v, ty)::(List.map (fun (x, t) -> (x, subst ty v t)) solved))
+         (List.map (fun (t1, t2) -> (subst ty v t1, subst ty v t2)) sys)
+  in aux [] se
