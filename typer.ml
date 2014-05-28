@@ -258,7 +258,7 @@ let treat_first sys = match sys with
                 (fun (se, flag) (ty1, ty2) ->
                  if occur_check v ty1 || occur_check v ty2 then
                    ((subst t v ty1, subst t v ty2)::se, `Touched)
-                 else (se, flag)) ([], `Untouched) rest
+                 else ((ty1, ty2)::se, flag)) ([], `Untouched) rest
     (*
      * constants
      * must be put after the variables, otherwise, the _ would match it
