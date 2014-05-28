@@ -45,7 +45,7 @@ type equ_sys = equ list
  *  - the type of the whole pattern
  *  - a type environment for bindings defined in the pattern
  *)
-let rec pat_typer pat = match pat with
+let rec pat_infer pat = match pat with
   | PatUnit  -> (TUnit, [])
   | PatCst _ -> (TInt, [])
   | PatWildcard ->
@@ -55,10 +55,10 @@ let rec pat_typer pat = match pat with
       let ty = TVar (next_var ()) in
       (ty, [(v, ty)])
   | PatCtor (name, pat) ->
-      let (pat_ty, pat_env) = pat_typer pat in
+      let (pat_ty, pat_env) = pat_infer pat in
       (TSum [(name, pat_ty)], pat_env)
   | PatTup pats ->
-      let (types, env_list) = List.split (List.map pat_typer pats) in
+      let (types, env_list) = List.split (List.map pat_infer pats) in
       (TTuple types, List.flatten env_list)
 
 (*
@@ -67,7 +67,7 @@ let rec pat_typer pat = match pat with
  *  - the inferred type, that may be a type variable
  *  - an equation system with constraints on the inferred types
  *)
-let rec typer env ast = match ast with
+let rec infer env ast = match ast with
   | Unit  -> (TUnit, [])
   | Cst _ -> (TInt, [])
   | Var v ->
@@ -83,15 +83,15 @@ let rec typer env ast = match ast with
        *  - return t2, add t1 = tpat as constraint
        * features recursive definition by default
        *)
-      let (ty_pat, nenv)      = pat_typer pat  in
+      let (ty_pat, nenv)      = pat_infer pat  in
       (* [t] : I might not be completely sure, but I think the change
-      let (ty_expr, sys)      = typer env expr in
+      let (ty_expr, sys)      = infer env expr in
       to
-      let (ty_expr, sys)      = typer (nenv @ env) expr in
-      is sufficient to support recursive definition (at least in the typer)
+      let (ty_expr, sys)      = infer (nenv @ env) expr in
+      is sufficient to support recursive definition (at least in the infer)
       the rest should be handled by the unification *)
-      let (ty_expr, sys)      = typer (nenv @ env) expr in
-      let (ty_body, sys_body) = typer (nenv @ env) body in
+      let (ty_expr, sys)      = infer (nenv @ env) expr in
+      let (ty_body, sys_body) = infer (nenv @ env) body in
       (ty_body, (ty_expr, ty_pat) :: sys @ sys_body)
   | Fun (pat, body) ->
       (*
@@ -100,8 +100,8 @@ let rec typer env ast = match ast with
        *  - type y in ty
        * Constraints will be added on apply
        *)
-      let (ty_pat, nenv) = pat_typer pat in
-      let (ty_body, sys) = typer (nenv @ env) body in
+      let (ty_pat, nenv) = pat_infer pat in
+      let (ty_body, sys) = infer (nenv @ env) body in
       (TFunc (ty_pat, ty_body), sys)
   | If (econd, etrue, efalse) ->
       (*
@@ -110,9 +110,9 @@ let rec typer env ast = match ast with
        *  - add constraint t2 = t3
        *  - add constraint t1 = int
        *)
-      let (ty_econd, sys_cond)   = typer env econd  in
-      let (ty_etrue, sys_true)   = typer env etrue  in
-      let (ty_efalse, sys_false) = typer env efalse in
+      let (ty_econd, sys_cond)   = infer env econd  in
+      let (ty_etrue, sys_true)   = infer env etrue  in
+      let (ty_efalse, sys_false) = infer env efalse in
       let sys = sys_cond @ sys_true @ sys_false in
       (ty_etrue, (ty_econd, TInt) :: (ty_etrue, ty_efalse) :: sys)
   | Tuple lst ->
@@ -120,7 +120,7 @@ let rec typer env ast = match ast with
        * typing of a tuple
        * just collects the types and constraints of sub-expressions
        *)
-      let (types, sys_list) = List.split (List.map (typer env) lst) in
+      let (types, sys_list) = List.split (List.map (infer env) lst) in
       (TTuple types, List.flatten sys_list)
   | BinOp (_, opl, opr) ->
       (*
@@ -128,8 +128,8 @@ let rec typer env ast = match ast with
        *  - type of the expression is x
        *  - add the constraint that the types of operands must be int
        *)
-      let (ty_opl, sys_l) = typer env opl in
-      let (ty_opr, sys_r) = typer env opr in
+      let (ty_opl, sys_l) = infer env opl in
+      let (ty_opr, sys_r) = infer env opr in
       (TInt, (ty_opl, TInt) :: (ty_opr, TInt) :: sys_l @ sys_r)
   | Match (expr, (car :: cdr)) ->
       (*
@@ -142,10 +142,10 @@ let rec typer env ast = match ast with
        *  - the final type is ty_0
        *)
       let type_arm (pat, ast) =
-          let (ty_pat, nenv)  = pat_typer pat          in
-          let (ty_arm, sys)   = typer (nenv @ env) ast in
+          let (ty_pat, nenv)  = pat_infer pat          in
+          let (ty_arm, sys)   = infer (nenv @ env) ast in
           (ty_pat, ty_arm, sys) in
-      let (ty_expr, sys_expr) = typer env expr in
+      let (ty_expr, sys_expr) = infer env expr in
       let (ty_pat_car, ty_arm_car, sys_car) = type_arm car in
       let sys = List.flatten (List.map (fun arm ->
           let (ty_pat, ty_arm, sys) = type_arm arm in
@@ -159,8 +159,8 @@ let rec typer env ast = match ast with
        *  - introduce a type tr for the result
        *  - add constraint tf = te -> tr
        *)
-      let (ty_func, sys_func) = typer env func in
-      let (ty_arg, sys_arg)   = typer env arg  in
+      let (ty_func, sys_func) = infer env func in
+      let (ty_arg, sys_arg)   = infer env arg  in
       let ty_ret = TVar (next_var ()) in
       (ty_ret, (TFunc (ty_arg, ty_ret), ty_func) :: sys_func @ sys_arg)
   | _ ->
@@ -198,6 +198,14 @@ let rec ty_to_string ty = match ty with
  *)
 
 (*
+ * Be careful with the built-in equality especially over type terms and
+ * type variables ; it will work for the moment, as it is structural,
+ * but if we change (e.g. for optimisation purpose) something in the
+ * representation, it may not work correctly anymore.
+ *)
+
+
+(*
  * Substitution of a type term to a given type variable inside one type term
  * (substitution is quite trivial as there are no cature problems)
  *)
@@ -214,8 +222,14 @@ let rec subst t1 x1 t = match t with
  *)
 let rec occur_check x t = match t with
   | TUnit | TInt     -> false
-  | TVar v           -> if v = x then true else false
+  | TVar v           -> (v = x)
   | TTuple l         -> List.exists (occur_check x) l
   | TFunc (arg, res) -> occur_check x arg || occur_check x res
   | TSum l           -> List.exists (fun (_, ty) -> occur_check x ty) l
                                      
+
+
+
+
+
+
