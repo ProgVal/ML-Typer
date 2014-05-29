@@ -25,7 +25,7 @@ make
 ```
 
 You can enter any expression directly on stdin, and terminate with
-EOF (^D). The typer works on a single expression.
+double semi-colon or EOF (^D). The typer works on a single expression.
 
 ### Syntax
 
