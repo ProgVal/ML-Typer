@@ -151,6 +151,7 @@ let rec infer env ast = match ast with
           let (ty_pat, ty_arm, sys) = type_arm arm in
           (ty_pat_car, ty_pat) :: (ty_arm_car, ty_arm) :: sys) cdr) in
       (ty_arm_car, (ty_pat_car, ty_expr) :: sys)
+  | Match (_, []) -> failwith "ICE : empty patterns are not supposed to be."
   | Apply (func, arg) ->
       (*
        * typing of a function application (f e)
@@ -163,9 +164,9 @@ let rec infer env ast = match ast with
       let (ty_arg, sys_arg)   = infer env arg  in
       let ty_ret = TVar (next_var ()) in
       (ty_ret, (TFunc (ty_arg, ty_ret), ty_func) :: sys_func @ sys_arg)
-  | _ ->
-      (* TODO: implement match and sum types *)
-      failwith "unimplemented"
+  | Ctor _ ->
+      (* TODO: implement sum types (and records !) *)
+      failwith "Variant types are still to be implemented"
 
 let rec ty_to_string ty = match ty with
   | TUnit                    -> "*unit*" ;
@@ -232,10 +233,15 @@ let rec occur_check x t = match t with
  * Exception raised whenever the unification is impossible
  * (maybe we should prefer option type, as it guarantees things through the
  * ocaml type system, while exception are not guarated to be caught)
- * TODO : have a more detailed failure system (implies to modify parsing...)
+ * TODO : have a more detailed failure system (implies to modify parsing...) !!
  *)
 exception ImpossibleToUnify
 
+
+(*
+ * One of the main function of unification.
+ * TODO : more explanations !!
+ *)
 let rec get_var_eq se = match se with
   | [] -> None
   | eq :: rest -> (
@@ -253,10 +259,13 @@ let rec get_var_eq se = match se with
     | (TUnit, _)                               -> raise ImpossibleToUnify
     | (TInt, TInt)                             -> get_var_eq rest
     | (TInt, _)                                -> raise ImpossibleToUnify
-    | (TSum l1, TSum l2)                       -> failwith "Unimplemented"
+    | (TSum l1, TSum l2)                       ->
+       failwith
+         "Unification of polymorphic variant types is not yet implemented"
     | (TSum _, _)                              -> raise ImpossibleToUnify
     (*
-     * splitting
+     * Splitting structures. Be care full with function when there will be
+     * subtypes.
      *)
     | (TTuple l1, TTuple l2)                   ->
        ( try
@@ -269,7 +278,12 @@ let rec get_var_eq se = match se with
     | (TFunc _, _)                             -> raise ImpossibleToUnify
   )
 
-(* TODO comment *)
+(* Unify function. Takes a system of equations and return an association table
+ * that map each variable in the system to a type term.
+ * Rely heavily on the above function (notice that both are tail-recursive).
+ * TODO : ensure that there aren't any free type variable
+ * (witch are NOT to be confused with polymorphic types)
+ *)
 let unify se =
   let rec aux solved current = match get_var_eq current with
   | None -> solved

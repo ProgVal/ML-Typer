@@ -22,13 +22,20 @@ let () =
                              print_string (Typer.ty_to_string y) ;
                              print_newline ())
               equs ;
-    let unif = Typer.unify equs in
     print_newline () ;
-    print_string "unified: " ;
-    print_newline () ;
-    List.iter (fun (v, t) -> print_string (Typer.ty_to_string (Typer.TVar v)) ;
-                             print_string " = " ;
-                             print_string (Typer.ty_to_string t) ;
-                             print_newline ())
-              unif ;
+    ( try
+        let unif = Typer.unify equs in
+        print_string "unified: " ;
+        print_newline () ;
+        List.iter (fun (v, t) ->
+                   print_string (Typer.ty_to_string (Typer.TVar v)) ;
+                   print_string " = " ;
+                   print_string (Typer.ty_to_string t) ;
+                   print_newline ())
+                  unif
+      with Typer.ImpossibleToUnify -> (
+        print_string "typer error : unification is impossilbe" ;
+        print_newline () ;
+      )
+    ) ;
     flush stdout
