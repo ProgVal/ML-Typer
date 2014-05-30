@@ -1,17 +1,17 @@
+open Codemap
+
 (*
- * builds an AST from a string
- * for debugging purposes in the OCaml toplevel
+ * Builds the AST for the current parse session
  *)
-let parse str =
-    let lexbuf = Lexing.from_string str in
+let parse sess =
+    let contents = sess.cm.(0).contents in
+    let lexbuf = Lexing.from_string contents in
     Parser.main Lexer.token lexbuf
 
 let () =
-    let lexbuf = Lexing.from_channel stdin in
-    let result = Parser.main Lexer.token lexbuf in
-    print_string (Ast.ast_to_string result) ;
-    let (ty, equs) = Typer.infer [] result in
-    print_newline () ;
+    let sess = sess_open None in
+    let result = parse sess in
+    let (ty, equs) = Typer.infer sess [] result in
     print_string "type: " ;
     print_string (Typer.ty_to_string ty) ;
     print_newline () ;

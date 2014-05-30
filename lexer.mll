@@ -25,7 +25,15 @@ let ctor   = ['A'-'Z']['A'-'Z''a'-'z''_''0'-'9']*
 let intcst = ['0'-'9']+
 
 rule token = parse
-| [' ' '\t''\n']    { token lexbuf }
+| [' ' '\t']        { token lexbuf }
+| '\n'              {
+                        let pos = lexbuf.Lexing.lex_curr_p in
+                        lexbuf.Lexing.lex_curr_p <- { pos with
+                            Lexing.pos_lnum = pos.Lexing.pos_lnum + 1;
+                            Lexing.pos_bol = pos.Lexing.pos_cnum;
+                        } ;
+                        token lexbuf
+                    }
 | id as str         { try Hashtbl.find keywords str
                       with Not_found -> ID str }
 | ctor as str       { CTOR str }

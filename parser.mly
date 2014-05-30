@@ -10,7 +10,22 @@
  *   - pattern matching
  */
 
-%{ open Ast %}
+%{
+    open Ast
+    open Codemap
+    open Lexing
+
+    let range s e =
+        let sp = rhs_start_pos s in
+        let ep = rhs_end_pos e in
+        let sp = { fileno = 0;
+                   line = sp.pos_lnum;
+                   col = sp.pos_cnum - sp.pos_bol + 1 } in
+        let ep = { fileno = 0;
+                   line = ep.pos_lnum;
+                   col = ep.pos_cnum - ep.pos_bol + 1 } in
+        (sp, ep)
+%}
 
 %start main
 %token EOF
@@ -31,18 +46,18 @@ main:
 
 expr:
     | arith                         { $1 }
-    | expr arith                    { Apply ($1, $2) }
+    | expr arith                    { (range 1 2, Apply ($1, $2)) }
     ;
 
 arith:
-    | arith PLUS term               { BinOp (Plus, $1, $3) }
-    | arith MINUS term              { BinOp (Minus, $1, $3) }
+    | arith PLUS term               { (range 1 3, BinOp (Plus, $1, $3)) }
+    | arith MINUS term              { (range 1 3, BinOp (Minus, $1, $3)) }
     | term                          { $1 }
     ;
 
 term:
-    | term MULT factor              { BinOp (Mult, $1, $3) }
-    | term DIV factor               { BinOp (Div, $1, $3) }
+    | term MULT factor              { (range 1 3, BinOp (Mult, $1, $3)) }
+    | term DIV factor               { (range 1 3, BinOp (Div, $1, $3)) }
     | factor                        { $1 }
     ;
 
@@ -55,56 +70,56 @@ factor:
     ;
 
 if_expr:
-    | IF expr THEN expr ELSE expr   { If ($2, $4, $6) }
+    | IF expr THEN expr ELSE expr   { (range 1 6, If ($2, $4, $6)) }
     ;
 
 fun_expr:
-    | FUN pattern ARR expr          { Fun ($2, $4) }
+    | FUN pattern ARR expr          { (range 1 4, Fun ($2, $4)) }
     ;
 
 let_expr:
-    | LET pattern EQ expr IN expr   { Let ($2, $4, $6) }
+    | LET pattern EQ expr IN expr   { (range 1 6, Let ($2, $4, $6)) }
     ;
 
 match_expr:
-    | MATCH expr WITH arm_list      { Match ($2, $4) }
-    | MATCH expr WITH PIPE arm_list { Match ($2, $5) }
+    | MATCH expr WITH arm_list      { (range 1 4, Match ($2, snd $4)) }
+    | MATCH expr WITH PIPE arm_list { (range 1 5, Match ($2, snd $5)) }
     ;
 
 arm_list:
-    | arm                           { [$1] }
-    | arm PIPE arm_list             { $1 :: $3 }
+    | arm                           { (range 1 1, [snd $1]) }
+    | arm PIPE arm_list             { (range 1 3, snd $1 :: snd $3) }
     ;
 
 arm:
-    | pattern ARR expr              { ($1, $3) }
+    | pattern ARR expr              { (range 1 3, ($1, $3)) }
     ;
 
 pattern:
-    | USCO                          { PatWildcard }
-    | ID                            { PatVar $1 }
-    | OP tuple_pat CL               { PatTup $2 }
-    | INT                           { PatCst $1 }
-    | CTOR pattern                  { PatCtor ($1, $2) }
-    | OP CL                         { PatUnit }
+    | USCO                          { (range 1 1, PatWildcard) }
+    | ID                            { (range 1 1, PatVar $1) }
+    | OP tuple_pat CL               { (range 1 3, PatTup (snd $2)) }
+    | INT                           { (range 1 1, PatCst $1) }
+    | CTOR pattern                  { (range 1 2, PatCtor ($1, $2)) }
+    | OP CL                         { (range 1 2, PatUnit) }
     | OP pattern CL                 { $2 }
     ;
 
 tuple_pat:
-    | pattern COMMA pattern         { [$1; $3] }
-    | pattern COMMA tuple_pat       { $1 :: $3 }
+    | pattern COMMA pattern         { (range 1 3, [$1; $3]) }
+    | pattern COMMA tuple_pat       { (range 1 3, $1 :: snd $3) }
     ;
 
 entity:
-    | ID                            { Var $1 }
-    | INT                           { Cst $1 }
-    | CTOR expr                     { Ctor ($1, $2) }
+    | ID                            { (range 1 1, Var $1) }
+    | INT                           { (range 1 1, Cst $1) }
+    | CTOR expr                     { (range 1 2, Ctor ($1, $2)) }
+    | OP CL                         { (range 1 2, Unit) }
+    | OP tuple CL                   { (range 1 3, Tuple (snd $2)) }
     | OP expr CL                    { $2 }
-    | OP tuple CL                   { Tuple $2 }
-    | OP CL                         { Unit }
     ;
 
 tuple:
-    | expr COMMA expr               { [$1; $3] }
-    | expr COMMA tuple              { $1 :: $3 }
+    | expr COMMA expr               { (range 1 3, [$1; $3]) }
+    | expr COMMA tuple              { (range 1 3, $1 :: snd $3) }
     ;

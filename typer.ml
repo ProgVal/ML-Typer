@@ -1,6 +1,7 @@
 (* typer for a simple ML-like pure functional language *)
 
 open Ast
+open Errors
 
 (* a type variable *)
 type tvar = int
@@ -45,7 +46,7 @@ type equ_sys = equ list
  *  - the type of the whole pattern
  *  - a type environment for bindings defined in the pattern
  *)
-let rec pat_infer pat = match pat with
+let rec pat_infer pat = match snd pat with
   | PatUnit  -> (TUnit, [])
   | PatCst _ -> (TInt, [])
   | PatWildcard ->
@@ -67,13 +68,14 @@ let rec pat_infer pat = match pat with
  *  - the inferred type, that may be a type variable
  *  - an equation system with constraints on the inferred types
  *)
-let rec infer env ast = match ast with
+let rec infer sess env ast = match snd ast with
   | Unit  -> (TUnit, [])
   | Cst _ -> (TInt, [])
   | Var v ->
       (* typing of a variable (lookup in the type environment) *)
       (try (List.assoc v env, [])
-       with Not_found -> failwith "unbound variable")
+       with Not_found ->
+           span_fatal sess (fst ast) (Printf.sprintf "unbound variable %s" v))
   | Let (pat, expr, body) ->
       (*
        * typing of `let x = e1 in e2' :
@@ -90,8 +92,8 @@ let rec infer env ast = match ast with
       let (ty_expr, sys)      = infer (nenv @ env) expr in
       is sufficient to support recursive definition (at least in the infer)
       the rest should be handled by the unification *)
-      let (ty_expr, sys)      = infer (nenv @ env) expr in
-      let (ty_body, sys_body) = infer (nenv @ env) body in
+      let (ty_expr, sys)      = infer sess (nenv @ env) expr in
+      let (ty_body, sys_body) = infer sess (nenv @ env) body in
       (ty_body, (ty_expr, ty_pat) :: sys @ sys_body)
   | Fun (pat, body) ->
       (*
@@ -101,7 +103,7 @@ let rec infer env ast = match ast with
        * Constraints will be added on apply
        *)
       let (ty_pat, nenv) = pat_infer pat in
-      let (ty_body, sys) = infer (nenv @ env) body in
+      let (ty_body, sys) = infer sess (nenv @ env) body in
       (TFunc (ty_pat, ty_body), sys)
   | If (econd, etrue, efalse) ->
       (*
@@ -110,9 +112,9 @@ let rec infer env ast = match ast with
        *  - add constraint t2 = t3
        *  - add constraint t1 = int
        *)
-      let (ty_econd, sys_cond)   = infer env econd  in
-      let (ty_etrue, sys_true)   = infer env etrue  in
-      let (ty_efalse, sys_false) = infer env efalse in
+      let (ty_econd, sys_cond)   = infer sess env econd  in
+      let (ty_etrue, sys_true)   = infer sess env etrue  in
+      let (ty_efalse, sys_false) = infer sess env efalse in
       let sys = sys_cond @ sys_true @ sys_false in
       (ty_etrue, (ty_econd, TInt) :: (ty_etrue, ty_efalse) :: sys)
   | Tuple lst ->
@@ -120,7 +122,7 @@ let rec infer env ast = match ast with
        * typing of a tuple
        * just collects the types and constraints of sub-expressions
        *)
-      let (types, sys_list) = List.split (List.map (infer env) lst) in
+      let (types, sys_list) = List.split (List.map (infer sess env) lst) in
       (TTuple types, List.flatten sys_list)
   | BinOp (_, opl, opr) ->
       (*
@@ -128,8 +130,8 @@ let rec infer env ast = match ast with
        *  - type of the expression is x
        *  - add the constraint that the types of operands must be int
        *)
-      let (ty_opl, sys_l) = infer env opl in
-      let (ty_opr, sys_r) = infer env opr in
+      let (ty_opl, sys_l) = infer sess env opl in
+      let (ty_opr, sys_r) = infer sess env opr in
       (TInt, (ty_opl, TInt) :: (ty_opr, TInt) :: sys_l @ sys_r)
   | Match (expr, (car :: cdr)) ->
       (*
@@ -143,9 +145,9 @@ let rec infer env ast = match ast with
        *)
       let type_arm (pat, ast) =
           let (ty_pat, nenv)  = pat_infer pat          in
-          let (ty_arm, sys)   = infer (nenv @ env) ast in
+          let (ty_arm, sys)   = infer sess (nenv @ env) ast in
           (ty_pat, ty_arm, sys) in
-      let (ty_expr, sys_expr) = infer env expr in
+      let (ty_expr, sys_expr) = infer sess env expr in
       let (ty_pat_car, ty_arm_car, sys_car) = type_arm car in
       let sys = List.flatten (List.map (fun arm ->
           let (ty_pat, ty_arm, sys) = type_arm arm in
@@ -160,8 +162,8 @@ let rec infer env ast = match ast with
        *  - introduce a type tr for the result
        *  - add constraint tf = te -> tr
        *)
-      let (ty_func, sys_func) = infer env func in
-      let (ty_arg, sys_arg)   = infer env arg  in
+      let (ty_func, sys_func) = infer sess env func in
+      let (ty_arg, sys_arg)   = infer sess env arg  in
       let ty_ret = TVar (next_var ()) in
       (ty_ret, (TFunc (ty_arg, ty_ret), ty_func) :: sys_func @ sys_arg)
   | Ctor _ ->

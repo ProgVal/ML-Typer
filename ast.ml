@@ -1,6 +1,7 @@
 (*
  * common type definitionss for the AST
  *)
+open Codemap
 
 (* a binary arithmetic operator *)
 type bin_op =
@@ -14,16 +15,17 @@ type bin_op =
  * side of a let ... in form, or of a function
  * argument
  *)
-type pattern =
+type s_pattern =
   | PatUnit
   | PatWildcard
   | PatCst  of int
   | PatVar  of string
   | PatCtor of string * pattern
   | PatTup  of pattern list
+and pattern  = s_pattern spanned
 
 (* internal representation of the AST *)
-type ast =
+type s_ast =
   | Unit
   | Cst     of int
   | Var     of string
@@ -35,6 +37,7 @@ type ast =
   | Match   of ast * (pattern * ast) list
   | Apply   of ast * ast
   | BinOp   of bin_op * ast * ast
+and ast  = s_ast spanned
 
 (* not-so-pretty-printing functions, for debug purposes *)
 
@@ -44,7 +47,7 @@ let binop_to_string op = match op with
   | Mult  -> "*"
   | Div   -> "/"
 
-let rec pat_to_string pat = match pat with
+let rec pat_to_string pat = match (snd pat) with
   | PatUnit             -> "(unit)"
   | PatWildcard         -> "_"
   | PatCst i            -> Printf.sprintf "(%s)" (string_of_int i)
@@ -60,7 +63,7 @@ let rec pat_to_string pat = match pat with
                                    (pat_to_string car)
                                    cdr)
 
-let rec ast_to_string ast = match ast with
+let rec ast_to_string ast = match (snd ast) with
   | Unit               -> "(unit)"
   | Cst i              -> Printf.sprintf "(%s)" (string_of_int i)
   | Var v              -> Printf.sprintf "(%s)" v
