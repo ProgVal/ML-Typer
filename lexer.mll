@@ -50,5 +50,5 @@ rule token = parse
 | '*'               { MULT }
 | '/'               { DIV }
 | eof               { EOF }
-| ";;"              { EOF }
+| ";;"              { EOF } (* invalidated by codemap.ml ; TODO : make it work ! *)
 | _ as c            { failwith (Printf.sprintf "unknown token: %c" c) }
