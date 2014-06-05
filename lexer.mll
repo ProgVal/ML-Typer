@@ -21,7 +21,15 @@
 
     (*
      * Temporary representation of a codemap
-     * being built
+     * being built. The lexmap contains:
+     *  - a copy of the whole program, filled
+     *    by the read function when reading from
+     *    an input_chan, or pre-filled when reading
+     *    from a string
+     *  - an offset to know where to read when we
+     *    read from a string
+     *  - the positions of the beginning of the lines,
+     *    updated by the lexer.c
      *)
     type lexmap = {
         mutable contents: string ;
@@ -30,8 +38,23 @@
     }
 
     let new_lexmap () = {
-        contents = "" ; lines = [|0|] ; offset = 0
+        contents = "" ; lines = [| 0 |] ; offset = 0
     }
+
+    let lexmap_from_str str = {
+        contents = str ; lines = [| 0 |] ; offset = 0
+    }
+
+    (*
+     * Reads at most len bytes in str, starting at start,
+     * and stores them at the beginning of buf. Returns
+     * the number of characters read.
+     *)
+    let input_str str buf start len =
+        let avail = String.length str - start in
+        let len = if avail < len then avail else len in
+        String.blit str start buf 0 len ;
+        len
 
     (*
      * Used as input function by the lexer. Stores the
@@ -39,10 +62,19 @@
      * reporting and sends it back to the lexer
      *)
     let read ic lexmap buf len =
-        lexmap.offset <- String.length lexmap.contents ;
         let count = input ic buf 0 len in
         let data = String.sub buf 0 count in
         lexmap.contents <- lexmap.contents ^ data ;
+        count
+
+    (*
+     * In the case we read from a string, we don't need to
+     * store data, but to update an offset that tells us
+     * where to read on the next call
+     *)
+    let read_str lexmap buf len =
+        let count = input_str (lexmap.contents) buf lexmap.offset len in
+        lexmap.offset <- lexmap.offset + count ;
         count
 }
 

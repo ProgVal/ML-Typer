@@ -9,3 +9,13 @@ SOURCES = \
 	main.ml
 
 include OCamlMakefile
+
+JS_RESULT = $(RESULT).js
+
+js: $(JS_RESULT)
+
+$(JS_RESULT): byte-code
+	js_of_ocaml $(RESULT)
+
+cleanall: clean
+	rm -f $(JS_RESULT)

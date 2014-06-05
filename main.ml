@@ -20,8 +20,25 @@ let sess_open filename =
   } in
   ({ cm = [| fmap |]; }, ast)
 
+(*
+ * Opens a new compiler session from a string containing the
+ * program text. Builds the AST and returns a pair (session, ast)
+ *)
+let sess_open_str contents =
+    let lexmap = Lexer.lexmap_from_str contents in
+    let lexbuf = Lexing.from_function (Lexer.read_str lexmap) in
+    let ast    = Parser.main (Lexer.token lexmap) lexbuf in
+    let fmap   = {
+        Codemap.name = "<toplevel>";
+        Codemap.contents = contents;
+        Codemap.lines = lexmap.Lexer.lines;
+    } in
+    ({ cm = [| fmap |]; }, ast)
+
 let () =
     let (sess, result) = sess_open None in
+    (* Uncomment to run in JS: *)
+    (* let (sess, result) = sess_open_str "let x = fun y -> y in x 3" in *)
     let (ty, equs) = Typer.infer sess [] result in
     print_string "type: " ;
     print_string (Typer.ty_to_string ty) ;
