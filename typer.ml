@@ -252,7 +252,8 @@ let rec get_var_eq se = match se with
     | (TVar v1, TVar v2) when v1 = v2  -> get_var_eq rest
     (* variable to be substituted *)
     | (TVar v, t) | (t, TVar v)        ->
-                     Some ((v, t), rest)
+      if occur_check v t then failwith "Recursive types are not allowed yet"
+      else Some ((v, t), rest)
     (*
      * constants
      * must be put after the variables, otherwise, the _ would match it
@@ -266,7 +267,7 @@ let rec get_var_eq se = match se with
          "Unification of polymorphic variant types is not yet implemented"
     | (TSum _, _)                              -> raise ImpossibleToUnify
     (*
-     * Splitting structures. Be care full with function when there will be
+     * Splitting structures. Be careful with function when there will be
      * subtypes.
      *)
     | (TTuple l1, TTuple l2)                   ->
