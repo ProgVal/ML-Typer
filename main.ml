@@ -1,16 +1,27 @@
 open Codemap
 
 (*
- * Builds the AST for the current parse session
+ * Opens a new compiler session from the given filename
+ * If no filename is provided, uses stdin
+ * Builds the AST for the current parse session and
+ * returns a pair (session, ast)
  *)
-let parse sess =
-    let contents = sess.cm.(0).contents in
-    let lexbuf = Lexing.from_string contents in
-    Parser.main Lexer.token lexbuf
+let sess_open filename =
+  let (ic, name) = match filename with
+  | Some f -> (open_in f, f)
+  | _ -> (stdin, "<stdin>") in
+  let lexmap = Lexer.new_lexmap () in
+  let lexbuf = Lexing.from_function (Lexer.read ic lexmap) in
+  let ast    = Parser.main (Lexer.token lexmap) lexbuf in
+  let fmap   = {
+      Codemap.name = name;
+      Codemap.contents = lexmap.Lexer.contents;
+      Codemap.lines = lexmap.Lexer.lines;
+  } in
+  ({ cm = [| fmap |]; }, ast)
 
 let () =
-    let sess = sess_open None in
-    let result = parse sess in
+    let (sess, result) = sess_open None in
     let (ty, equs) = Typer.infer sess [] result in
     print_string "type: " ;
     print_string (Typer.ty_to_string ty) ;
@@ -34,7 +45,7 @@ let () =
                    print_newline ())
                   unif
       with Typer.ImpossibleToUnify -> (
-        print_string "typer error : unification is impossilbe" ;
+        print_string "typer error : unification is impossible" ;
         print_newline () ;
       )
     ) ;

@@ -5,7 +5,7 @@ let span_err sess sp msg =
     let file = sess.cm.(s.fileno) in
         Printf.printf "%s:%d:%d: %d:%d \x1b[1;31merror: \x1b[1;37m%s\x1b[0m\n"
                       file.name s.line s.col e.line e.col msg ;
-        if s.line == e.line then
+        if s.line = e.line then
             (*
              * The errorneous expression spans over a single line
              * Draw an arrow to point the exact position

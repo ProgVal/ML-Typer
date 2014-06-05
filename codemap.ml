@@ -52,27 +52,6 @@ type span = (pos * pos)
 type 's spanned = (span * 's)
 
 (*
- * Opens a new compiler session from the given filename
- * If no filename is provided, uses stdin
- *)
-let sess_open filename =
-  let (ic, name) = match filename with
-  | Some f -> (open_in f, f)
-  | _ -> (stdin, "<stdin>") in
-  let contents = ref "" in
-  let lines = ref [||] in
-  let pos = ref 0 in
-  (try
-      while true do
-          let line = input_line ic in
-          contents := !contents ^ line ^ "\n";
-          lines := Array.append !lines [| !pos |] ;
-          pos := !pos + (String.length line) +  1
-      done
-  with End_of_file -> ()) ;
-  { cm = [| { name = name; contents = !contents; lines = !lines; } |]; }
-
-(*
  * Returns the position of the beginning of the line
  * that contains the given position
  * The position is returned as a byte offset, starting

@@ -1,9 +1,9 @@
 RESULT = typer
 SOURCES = \
-	codemap.ml \
-	errors.ml \
 	parser.mly \
 	lexer.mll \
+	codemap.ml \
+	errors.ml \
 	ast.ml \
 	typer.ml \
 	main.ml
