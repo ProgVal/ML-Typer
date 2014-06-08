@@ -41,27 +41,27 @@ let () =
     (* let (sess, result) = sess_open_str "let x = fun y -> y in x 3" in *)
     let (ty, equs) = Typer.infer sess [] result in
     print_string "type: " ;
-    print_string (Typer.ty_to_string ty) ;
+    print_string (Type.ty_to_string ty) ;
     print_newline () ;
     print_string "equs: " ;
     print_newline () ;
-    List.iter (fun (x, y) -> print_string (Typer.ty_to_string x) ;
+    List.iter (fun (x, y) -> print_string (Type.ty_to_string x) ;
                              print_string " = " ;
-                             print_string (Typer.ty_to_string y) ;
+                             print_string (Type.ty_to_string y) ;
                              print_newline ())
               equs ;
     print_newline () ;
     ( try
-        let unif = Typer.unify equs in
+        let unif = Unif.unify equs in
         print_string "unified: " ;
         print_newline () ;
         List.iter (fun (v, t) ->
-                   print_string (Typer.ty_to_string (Typer.TVar v)) ;
+                   print_string (Type.ty_to_string (Type.TVar v)) ;
                    print_string " = " ;
-                   print_string (Typer.ty_to_string t) ;
+                   print_string (Type.ty_to_string t) ;
                    print_newline ())
                   unif
-      with Typer.ImpossibleToUnify -> (
+      with Unif.ImpossibleToUnify -> (
         print_string "typer error : unification is impossible" ;
         print_newline () ;
       )

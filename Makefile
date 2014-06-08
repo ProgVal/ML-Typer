@@ -5,6 +5,8 @@ SOURCES = \
 	codemap.ml \
 	errors.ml \
 	ast.ml \
+	type.ml \
+	unif.ml \
 	typer.ml \
 	main.ml
 
