@@ -16,21 +16,31 @@ type type_env = (string * ty) list
  *  - the type of the whole pattern
  *  - a type environment for bindings defined in the pattern
  *)
-let rec pat_infer pat = match snd pat with
-  | PatUnit  -> (TUnit, [])
-  | PatCst _ -> (TInt, [])
-  | PatWildcard ->
-     let ty = TVar (next_var ()) in
-     (ty, [])
-  | PatVar v ->
-      let ty = TVar (next_var ()) in
-      (ty, [(v, ty)])
-  | PatCtor (name, pat) ->
-      let (pat_ty, pat_env) = pat_infer pat in
-      (TSum [(name, pat_ty)], pat_env)
-  | PatTup pats ->
-      let (types, env_list) = List.split (List.map pat_infer pats) in
-      (TTuple types, List.flatten env_list)
+let pat_infer sess pat =
+  let h = Hashtbl.create 0 in
+  let rec aux pat = match snd pat with
+    | PatUnit  -> (TUnit, [])
+    | PatCst _ -> (TInt, [])
+    | PatWildcard ->
+       let ty = TVar (next_var ()) in
+       (ty, [])
+    | PatVar v ->
+       if Hashtbl.mem h v then
+         (* shouldn't the error message hilight the whole pattern ? *)
+         span_fatal sess (fst pat)
+                    (Printf.sprintf "Variable %s is bound several times in this pattern" v)
+       else (
+         Hashtbl.add h v () ;
+         let ty = TVar (next_var ()) in
+         (ty, [(v, ty)])
+       )
+    | PatCtor (name, pat) ->
+       let (pat_ty, pat_env) = aux pat in
+       (TSum [(name, pat_ty)], pat_env)
+    | PatTup pats ->
+       let (types, env_list) = List.split (List.map aux pats) in
+       (TTuple types, List.flatten env_list)
+  in aux pat
 
 (*
  * Infers the type of an expression
@@ -55,7 +65,7 @@ let rec infer sess env ast = match snd ast with
        *  - return t2, add t1 = tpat as constraint
        * features recursive definition by default
        *)
-      let (ty_pat, nenv)      = pat_infer pat  in
+      let (ty_pat, nenv)      = pat_infer sess pat  in
       (* [t] : I might not be completely sure, but I think the change
       let (ty_expr, sys)      = infer env expr in
       to
@@ -72,7 +82,7 @@ let rec infer sess env ast = match snd ast with
        *  - type y in ty
        * Constraints will be added on apply
        *)
-      let (ty_pat, nenv) = pat_infer pat in
+      let (ty_pat, nenv) = pat_infer sess pat in
       let (ty_body, sys) = infer sess (nenv @ env) body in
       (TFunc (ty_pat, ty_body), sys)
   | If (econd, etrue, efalse) ->
@@ -114,7 +124,7 @@ let rec infer sess env ast = match snd ast with
        *  - the final type is ty_0
        *)
       let type_arm (pat, ast) =
-          let (ty_pat, nenv)  = pat_infer pat          in
+          let (ty_pat, nenv)  = pat_infer sess pat          in
           let (ty_arm, sys)   = infer sess (nenv @ env) ast in
           (ty_pat, ty_arm, sys) in
       let (ty_expr, sys_expr) = infer sess env expr in
