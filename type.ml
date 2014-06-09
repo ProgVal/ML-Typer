@@ -23,8 +23,7 @@ type ty =
   | TSum   of ctor list
 and ctor = (string * ty)
 
-
-(* pretty-printing *)
+(* type pretty-printing *)
 
 
 let rec ty_to_string ty = match ty with
@@ -52,3 +51,21 @@ let rec ty_to_string ty = match ty with
                                         (Printf.sprintf "Ctor%s %s" ctor
                                                         (ty_to_string ty)) cdr)
 
+(*
+ * Substitution of a type term to a given type variable inside one type term
+ * (substitution is quite trivial as there are no cature problems)
+ *)
+let rec subst t1 x1 t = match t with
+  | TUnit | TInt     -> t
+  | TVar v           -> if v = x1 then t1 else t
+  | TTuple l         -> TTuple (List.map (subst t1 x1) l)
+  | TFunc (arg, res) -> TFunc (subst t1 x1 arg, subst t1 x1 res)
+  | TSum l           -> TSum (List.map (fun (ctor, ty) ->
+                                        (ctor, subst t1 x1 ty)) l)
+
+(* Substitutions as first class values
+ * (used by the immediate resolution inference algorithm)
+ * currently simply functions ; to be optimized
+ *)
+
+let empty_subst t = t
