@@ -1,3 +1,7 @@
+(* TODO :
+ * rewrite comments !! (a certain number of them are no longer accurate
+ *)
+
 (* typer for a simple ML-like pure functional language *)
 (* immediate resolution *)
 
@@ -17,6 +21,18 @@ open Type
  *)
 type type_env = (string * ty) list
 
+(* apply a sunstitution over an environement *)
+let subst_env s e = List.map (fun (str, ty) -> (str, s ty)) e
+
+(*
+ * Convert the result of unification (or any association list)
+ * into a substitution
+ *)
+let alist_to_subst alist =
+  (fun ty -> List.fold_left (fun res (v1, ty1) -> subst ty1 v1 ty) ty alist)
+                            
+
+
 let pat_infer sess pat = Typer.pat_infer sess pat
 
 (*
@@ -33,7 +49,6 @@ let rec infer sess env ast = match snd ast with
       (try (List.assoc v env, empty_subst)
        with Not_found ->
            span_fatal sess (fst ast) (Printf.sprintf "unbound variable %s" v))
-  | _ -> failwith "TODO"
 (*
   | Let (pat, expr, body) ->
       (*
@@ -64,18 +79,25 @@ let rec infer sess env ast = match snd ast with
       let (ty_pat, nenv) = pat_infer sess pat in
       let (ty_body, sys) = infer sess (nenv @ env) body in
       (TFunc (ty_pat, ty_body), sys)
+ *)
   | If (econd, etrue, efalse) ->
-      (*
-       * typing of ifz e1 then e2 else e3
-       *  - type of the expression is t2
-       *  - add constraint t2 = t3
-       *  - add constraint t1 = int
-       *)
-      let (ty_econd, sys_cond)   = infer sess env econd  in
-      let (ty_etrue, sys_true)   = infer sess env etrue  in
-      let (ty_efalse, sys_false) = infer sess env efalse in
+     (*
+      * typing of ifz e1 then e2 else e3
+      *  - type of the expression is t2
+      *  - add constraint t2 = t3
+      *  - add constraint t1 = int
+      *)
+      let (ty_econd, subst0)   = infer sess env econd  in
+      let subst1               =
+        alist_to_subst (Unif.unify [(ty_econd, TInt)]) in
+      let subst2               = (fun ty -> subst0 (
+      let (ty_etrue, s_true)   = infer sess env etrue  in
+      let (ty_efalse, s_false) = infer sess env efalse in
+      
       let sys = sys_cond @ sys_true @ sys_false in
       (ty_etrue, (ty_econd, TInt) :: (ty_etrue, ty_efalse) :: sys)
+  | _ -> failwith "TODO"
+(*
   | Tuple lst ->
       (*
        * typing of a tuple

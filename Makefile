@@ -8,7 +8,7 @@ SOURCES = \
 	type.ml \
 	unif.ml \
 	typer.ml \
-	immtyper.ml \
+	immtyper_test.ml \
 	main.ml
 
 include OCamlMakefile

@@ -39,6 +39,8 @@ let () =
     let (sess, result) = sess_open None in
     (* Uncomment to run in JS: *)
     (* let (sess, result) = sess_open_str "let x = fun y -> y in x 3" in *)
+    print_string "FIRST ALGORITHM : " ;
+    print_newline () ;
     let (ty, equs) = Typer.infer sess [] result in
     print_string "type: " ;
     print_string (Type.ty_to_string ty) ;
@@ -66,4 +68,24 @@ let () =
         print_newline () ;
       )
     ) ;
+
+    print_newline () ;
+    print_newline () ;
+
+    print_string "SECOND ALGORITHM : " ;
+    print_newline () ;
+    let (ty, binds) = Immtyper_test.infer sess [] result in
+    print_string "type: " ;
+    print_string (Type.ty_to_string ty) ;
+    print_newline () ;
+    print_string "bindings: " ;
+    print_newline () ;
+    Hashtbl.iter (fun v t ->
+                   print_string (Type.ty_to_string (Type.TVar v)) ;
+                   print_string " = " ;
+                   print_string (Type.ty_to_string t) ;
+                   print_newline ()
+                 )
+              binds ;
+    print_newline () ;
     flush stdout
