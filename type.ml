@@ -23,8 +23,14 @@ type ty =
   | TSum   of ctor list
 and ctor = (string * ty)
 
-(* type pretty-printing *)
+(*
+ * the typing environment that remembers
+ * lexical bindings and their types
+ * TODO: change string to a more precise type
+ *)
+type type_env = (string * ty) list
 
+(* type pretty-printing *)
 
 let rec ty_to_string ty = match ty with
   | TUnit                    -> "*unit*" ;
@@ -39,7 +45,7 @@ let rec ty_to_string ty = match ty with
                                                            (ty_to_string ty)))
                                         (ty_to_string car) cdr)
   | TFunc (arg, res)         -> Printf.sprintf "%s -> %s" (ty_to_string arg)
-                                                  (ty_to_string res)
+                                                          (ty_to_string res)
   | TSum []                  -> failwith "empty sum type"
   | TSum ((ctor, ty) :: cdr) -> Printf.sprintf
                                     "(%s)"
@@ -63,9 +69,41 @@ let rec subst t1 x1 t = match t with
   | TSum l           -> TSum (List.map (fun (ctor, ty) ->
                                         (ctor, subst t1 x1 ty)) l)
 
-(* Substitutions as first class values
+(*
+ * Substitutions as first class values
  * (used by the immediate resolution inference algorithm)
  * currently simply functions ; to be optimized
  *)
+module Subst (Unif: sig val unify: (ty * ty) list -> (tvar * ty) list end) = struct
+    type t = (tvar, ty) Hashtbl.t
+    let empty () = Hashtbl.create 0
 
-let empty_subst t = t
+    (* apply the substitutions on a type *)
+    let rec apply substs ty = match ty with
+    | TUnit | TInt     -> ty
+    | TVar v           -> (try Hashtbl.find substs v with Not_found -> ty)
+    | TTuple l         -> TTuple (List.map (apply substs) l)
+    | TFunc (arg, res) -> TFunc (apply substs arg, apply substs res)
+    | TSum l           -> TSum (List.map (fun (ctor, ty) -> (ctor, apply substs ty)) l)
+
+    (*
+     * Merges an associative list of (variable, type) returned by the
+     * unification into our subsitutions map.
+     * Assumes that type terms of alist do not contain the keys of alist
+     * or of the subsitutions map (this forbids recursive types)
+     *)
+    let rec merge substs alist = match alist with
+    | [] -> ()
+    | (v, ty1) :: rest ->
+        try
+            let ty2 = Hashtbl.find substs v in
+            merge substs ((Unif.unify [(ty1, ty2)]) @ rest)
+        with Not_found ->
+            ( Utils.hashtbl_map_inplace (subst ty1 v) substs ;
+              Hashtbl.add substs v ty1 ;
+              merge substs rest )
+
+    (* Unifies a list of equations and merge them into the substitutions *)
+    let unify substs equs =
+        merge substs (Unif.unify equs)
+end

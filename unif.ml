@@ -80,7 +80,8 @@ let rec get_var_eq se = match se with
     | (TFunc _, _)                             -> raise ImpossibleToUnify
   )
 
-(* Unify function. Takes a system of equations and return an association table
+(*
+ * Unify function. Takes a system of equations and return an association table
  * that map each variable in the system to a type term.
  * Rely heavily on the above function (notice that both are tail-recursive).
  * TODO : ensure that there aren't any free type variable

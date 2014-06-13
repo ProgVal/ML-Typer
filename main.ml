@@ -74,7 +74,7 @@ let () =
 
     print_string "SECOND ALGORITHM : " ;
     print_newline () ;
-    let (ty, binds) = Immtyper_test.infer sess [] result in
+    let (ty, binds) = Immtyper.infer sess [] result in
     print_string "type: " ;
     print_string (Type.ty_to_string ty) ;
     print_newline () ;

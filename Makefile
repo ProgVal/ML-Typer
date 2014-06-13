@@ -1,5 +1,6 @@
 RESULT = typer
 SOURCES = \
+	utils.ml \
 	parser.mly \
 	lexer.mll \
 	codemap.ml \
@@ -8,7 +9,7 @@ SOURCES = \
 	type.ml \
 	unif.ml \
 	typer.ml \
-	immtyper_test.ml \
+	immtyper.ml \
 	main.ml
 
 include OCamlMakefile
