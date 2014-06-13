@@ -2,12 +2,10 @@
 
 open Ast
 open Errors
-open Type
+open Types
                             
 (* This didn't change from the previous algorithm *)
 let pat_infer = Typer.pat_infer
-
-module Subst = Type.Subst (Unif)
 
 (*
  * Infers the type of an expression
@@ -19,8 +17,8 @@ module Subst = Type.Subst (Unif)
 let infer sess env ast =
     let bindings = Subst.empty () in
     let rec aux env ast = match snd ast with
-    | Unit  -> TUnit
-    | Cst _ -> TInt
+    | Unit  -> `TUnit
+    | Cst _ -> `TInt
     | Var v ->
         (* typing of a variable (lookup in the type environment) *)
         (* + update env (TODO: lazy substitutions! *)
@@ -49,7 +47,7 @@ let infer sess env ast =
        *)
       let (ty_pat, nenv) = pat_infer sess pat    in
       let ty_body        = aux (nenv @ env) body in
-      Subst.apply bindings (TFunc (ty_pat, ty_body))
+      Subst.apply bindings (`TFunc (ty_pat, ty_body))
   | If (econd, etrue, efalse) ->
      (*
       * typing of ifz e1 then e2 else e3
@@ -60,14 +58,14 @@ let infer sess env ast =
       let ty_econd  = aux env econd  in
       let ty_etrue  = aux env etrue  in
       let ty_efalse = aux env efalse in
-      Subst.unify bindings [(ty_econd, TInt) ; (ty_etrue, ty_efalse)] ;
+      Subst.unify bindings [(ty_econd, `TInt) ; (ty_etrue, ty_efalse)] ;
       Subst.apply bindings ty_etrue
   | Tuple lst ->
      (*
       * typing of a tuple
       * just collects the types and constraints of sub-expressions
       *)
-     Subst.apply bindings (TTuple (List.map (aux env) lst))
+     Subst.apply bindings (`TTuple (List.map (aux env) lst))
   | BinOp (_, opl, opr) ->
      (*
       * typing of a binary operator
@@ -76,8 +74,8 @@ let infer sess env ast =
       *)
      let ty_opl = aux env opl in
      let ty_opr = aux env opr in
-     Subst.unify bindings [(ty_opl, TInt) ; (ty_opr, TInt)] ;
-     TInt
+     Subst.unify bindings [(ty_opl, `TInt) ; (ty_opr, `TInt)] ;
+     `TInt
   | Match (expr, (car :: cdr)) ->
      (*
       * typing of a match expr with ...
@@ -110,8 +108,8 @@ let infer sess env ast =
        *)
       let ty_arg  = aux env arg  in
       let ty_func = aux env func in
-      let ty_ret  = TVar (next_var ()) in
-      Subst.unify bindings [(TFunc (ty_arg, ty_ret), ty_func)] ;
+      let ty_ret  = `TVar (next_var ()) in
+      Subst.unify bindings [(`TFunc (ty_arg, ty_ret), ty_func)] ;
       Subst.apply bindings ty_ret
   | Ctor _ ->
       (* TODO: implement sum types (and records !) *)

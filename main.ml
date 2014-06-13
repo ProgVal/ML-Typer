@@ -43,27 +43,27 @@ let () =
     print_newline () ;
     let (ty, equs) = Typer.infer sess [] result in
     print_string "type: " ;
-    print_string (Type.ty_to_string ty) ;
+    print_string (Types.ty_to_string ty) ;
     print_newline () ;
     print_string "equs: " ;
     print_newline () ;
-    List.iter (fun (x, y) -> print_string (Type.ty_to_string x) ;
+    List.iter (fun (x, y) -> print_string (Types.ty_to_string x) ;
                              print_string " = " ;
-                             print_string (Type.ty_to_string y) ;
+                             print_string (Types.ty_to_string y) ;
                              print_newline ())
               equs ;
     print_newline () ;
     ( try
-        let unif = Unif.unify equs in
+        let unif = Types.Unif.unify equs in
         print_string "unified: " ;
         print_newline () ;
         List.iter (fun (v, t) ->
-                   print_string (Type.ty_to_string (Type.TVar v)) ;
+                   print_string (Types.ty_to_string (`TVar v)) ;
                    print_string " = " ;
-                   print_string (Type.ty_to_string t) ;
+                   print_string (Types.ty_to_string t) ;
                    print_newline ())
                   unif
-      with Unif.ImpossibleToUnify -> (
+      with Types.Unif.ImpossibleToUnify -> (
         print_string "typer error : unification is impossible" ;
         print_newline () ;
       )
@@ -76,16 +76,18 @@ let () =
     print_newline () ;
     let (ty, binds) = Immtyper.infer sess [] result in
     print_string "type: " ;
-    print_string (Type.ty_to_string ty) ;
+    print_string (Types.ty_to_string ty) ;
     print_newline () ;
     print_string "bindings: " ;
     print_newline () ;
+    (* TODO: print subst
     Hashtbl.iter (fun v t ->
-                   print_string (Type.ty_to_string (Type.TVar v)) ;
+                   print_string (Types.ty_to_string (`TVar v)) ;
                    print_string " = " ;
-                   print_string (Type.ty_to_string t) ;
+                   print_string (Types.ty_to_string t) ;
                    print_newline ()
                  )
               binds ;
+    *)
     print_newline () ;
     flush stdout

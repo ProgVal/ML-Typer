@@ -2,7 +2,7 @@
 
 open Ast
 open Errors
-open Type
+open Types
 
 (*
  * the typing environment that remembers
@@ -19,27 +19,27 @@ type type_env = (string * ty) list
 let pat_infer sess pat =
   let h = Hashtbl.create 0 in
   let rec aux pat = match snd pat with
-    | PatUnit  -> (TUnit, [])
-    | PatCst _ -> (TInt, [])
+    | PatUnit  -> (`TUnit, [])
+    | PatCst _ -> (`TInt, [])
     | PatWildcard ->
-       let ty = TVar (next_var ()) in
+       let ty = `TVar (next_var ()) in
        (ty, [])
     | PatVar v ->
        if Hashtbl.mem h v then
-         (* shouldn't the error message hilight the whole pattern ? *)
+         (* shouldn't the error message highlight the whole pattern ? *)
          span_fatal sess (fst pat)
                     (Printf.sprintf "Variable %s is bound several times in this pattern" v)
        else (
          Hashtbl.add h v () ;
-         let ty = TVar (next_var ()) in
+         let ty = `TVar (next_var ()) in
          (ty, [(v, ty)])
        )
     | PatCtor (name, pat) ->
        let (pat_ty, pat_env) = aux pat in
-       (TSum [(name, pat_ty)], pat_env)
+       (`TSum [(name, pat_ty)], pat_env)
     | PatTup pats ->
        let (types, env_list) = List.split (List.map aux pats) in
-       (TTuple types, List.flatten env_list)
+       (`TTuple types, List.flatten env_list)
   in aux pat
 
 (*
@@ -49,8 +49,8 @@ let pat_infer sess pat =
  *  - an equation system with constraints on the inferred types
  *)
 let rec infer sess env ast = match snd ast with
-  | Unit  -> (TUnit, [])
-  | Cst _ -> (TInt, [])
+  | Unit  -> (`TUnit, [])
+  | Cst _ -> (`TInt, [])
   | Var v ->
       (* typing of a variable (lookup in the type environment) *)
       (try (List.assoc v env, [])
@@ -84,7 +84,7 @@ let rec infer sess env ast = match snd ast with
        *)
       let (ty_pat, nenv) = pat_infer sess pat in
       let (ty_body, sys) = infer sess (nenv @ env) body in
-      (TFunc (ty_pat, ty_body), sys)
+      (`TFunc (ty_pat, ty_body), sys)
   | If (econd, etrue, efalse) ->
       (*
        * typing of ifz e1 then e2 else e3
@@ -96,14 +96,14 @@ let rec infer sess env ast = match snd ast with
       let (ty_etrue, sys_true)   = infer sess env etrue  in
       let (ty_efalse, sys_false) = infer sess env efalse in
       let sys = sys_cond @ sys_true @ sys_false in
-      (ty_etrue, (ty_econd, TInt) :: (ty_etrue, ty_efalse) :: sys)
+      (ty_etrue, (ty_econd, `TInt) :: (ty_etrue, ty_efalse) :: sys)
   | Tuple lst ->
       (*
        * typing of a tuple
        * just collects the types and constraints of sub-expressions
        *)
       let (types, sys_list) = List.split (List.map (infer sess env) lst) in
-      (TTuple types, List.flatten sys_list)
+      (`TTuple types, List.flatten sys_list)
   | BinOp (_, opl, opr) ->
       (*
        * typing of a binary operator
@@ -112,7 +112,7 @@ let rec infer sess env ast = match snd ast with
        *)
       let (ty_opl, sys_l) = infer sess env opl in
       let (ty_opr, sys_r) = infer sess env opr in
-      (TInt, (ty_opl, TInt) :: (ty_opr, TInt) :: sys_l @ sys_r)
+      (`TInt, (ty_opl, `TInt) :: (ty_opr, `TInt) :: sys_l @ sys_r)
   | Match (expr, (car :: cdr)) ->
       (*
        * typing of a match expr with ...
@@ -144,8 +144,8 @@ let rec infer sess env ast = match snd ast with
        *)
       let (ty_func, sys_func) = infer sess env func in
       let (ty_arg, sys_arg)   = infer sess env arg  in
-      let ty_ret = TVar (next_var ()) in
-      (ty_ret, (TFunc (ty_arg, ty_ret), ty_func) :: sys_func @ sys_arg)
+      let ty_ret = `TVar (next_var ()) in
+      (ty_ret, (`TFunc (ty_arg, ty_ret), ty_func) :: sys_func @ sys_arg)
   | Ctor _ ->
       (* TODO: implement sum types (and records !) *)
       failwith "Variant types are still to be implemented"

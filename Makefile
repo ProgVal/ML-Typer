@@ -6,8 +6,7 @@ SOURCES = \
 	codemap.ml \
 	errors.ml \
 	ast.ml \
-	type.ml \
-	unif.ml \
+	types.ml \
 	typer.ml \
 	immtyper.ml \
 	main.ml
