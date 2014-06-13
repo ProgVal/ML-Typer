@@ -78,7 +78,6 @@ let infer sess env ast =
      let ty_opr = aux env opr in
      Subst.unify bindings [(ty_opl, TInt) ; (ty_opr, TInt)] ;
      TInt
-(*
   | Match (expr, (car :: cdr)) ->
      (*
       * typing of a match expr with ...
@@ -90,19 +89,17 @@ let infer sess env ast =
       *  - the final type is ty_0
       *)
      let type_arm (pat, ast) =
-       let (ty_pat, nenv)  = pat_infer sess pat          in
-       let (ty_arm, sys)   = infer sess (nenv @ env) ast in
-       (ty_pat, ty_arm, sys) in
-
-     let (ty_expr, sys_expr) = infer sess env expr in
-     let (ty_pat_car, ty_arm_car, sys_car) = type_arm car in
+         let (ty_pat, nenv)  = pat_infer sess pat   in
+         let ty_arm          = aux (nenv @ env) ast in
+         (ty_pat, ty_arm)    in
+     let ty_expr                  = aux env expr in
+     let (ty_pat_car, ty_arm_car) = type_arm car in
      let sys = List.flatten (List.map (fun arm ->
-          let (ty_pat, ty_arm, sys) = type_arm arm in
-          (ty_pat_car, ty_pat) :: (ty_arm_car, ty_arm) :: sys) cdr) in
-      (ty_arm_car, (ty_pat_car, ty_expr) :: sys)
+          let (ty_pat, ty_arm) = type_arm arm in
+          [(ty_pat_car, ty_pat); (ty_arm_car, ty_arm)]) cdr) in
+     Subst.unify bindings ((ty_pat_car, ty_expr) :: sys) ;
+     Subst.apply bindings ty_arm_car
   | Match (_, []) -> failwith "ICE : empty patterns are not supposed to be."
- *)
-  | Match _ -> failwith "TODO"
   | Apply (func, arg) ->
       (*
        * typing of a function application (f e)
