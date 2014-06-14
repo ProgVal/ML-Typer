@@ -48,60 +48,40 @@ let binop_to_string op = match op with
   | `Mult  -> "*"
   | `Div   -> "/"
 
+open Printf
+
 let rec pat_to_string pat = match (snd pat) with
   | `PatUnit             -> "(unit)"
   | `PatWildcard         -> "_"
-  | `PatCst i            -> Printf.sprintf "(%s)" (string_of_int i)
-  | `PatVar v            -> Printf.sprintf "(%s)" v
-  | `PatCtor (str, arg)  -> Printf.sprintf "(%s %s)" str (pat_to_string arg)
-  | `PatTup []           -> failwith "empty tuple"
-  | `PatTup (car :: cdr) -> Printf.sprintf
-                               "(%s)"
-                               (List.fold_left
-                                   (fun res pat -> 
-                                       (Printf.sprintf "%s, %s" res 
-                                                       (pat_to_string pat)))
-                                   (pat_to_string car)
-                                   cdr)
+  | `PatCst i            -> sprintf "(%s)" (string_of_int i)
+  | `PatVar v            -> sprintf "(%s)" v
+  | `PatCtor (str, arg)  -> sprintf "(%s %s)" str (pat_to_string arg)
+  | `PatTup tup          -> sprintf "(%s)" (Utils.string_of_list tup ~sep:", "
+                                                                 pat_to_string)
 
 let rec ast_to_string ast = match (snd ast) with
   | `Unit               -> "(unit)"
-  | `Cst i              -> Printf.sprintf "(%s)" (string_of_int i)
-  | `Var v              -> Printf.sprintf "(%s)" v
-  | `Ctor (str, ast)    -> Printf.sprintf "(%s %s)" str (ast_to_string ast)
-  | `Tuple []           -> failwith "empty tuple"
-  | `Tuple (car :: cdr) -> Printf.sprintf
-                              "(%s)"
-                              (List.fold_left
-                                  (fun res ast ->
-                                      (Printf.sprintf "%s, %s" res
-                                                      (ast_to_string ast)))
-                                  (ast_to_string car)
-                                  cdr)
-  | `If (e1, e2, e3)    -> Printf.sprintf "(if %s then %s else %s)"
-                                        (ast_to_string e1)
-                                        (ast_to_string e2)
-                                        (ast_to_string e3)
-  | `Fun (pat, expr)    -> Printf.sprintf "(fun %s -> %s)"
-                                        (pat_to_string pat)
-                                        (ast_to_string expr)
-  | `Let (pat, e1, e2)  -> Printf.sprintf "(let %s = %s in %s)"
-                                        (pat_to_string pat)
-                                        (ast_to_string e1)
-                                        (ast_to_string e2)
-  | `Match (expr, arms) -> Printf.sprintf
-                              "(match %s with %s)"
-                              (ast_to_string expr)
-                              (List.fold_left
-                                  (fun res (pat, ast) ->
-                                      (Printf.sprintf "%s | %s -> %s" res
-                                                      (pat_to_string pat)
-                                                      (ast_to_string ast)))
-                                  "" arms)
-  | `BinOp (op, e1, e2) -> Printf.sprintf "(%s %s %s)"
-                                         (ast_to_string e1)
-                                         (binop_to_string op)
-                                         (ast_to_string e2)
-  | `Apply (func, arg)  -> Printf.sprintf "(%s %s)"
-                                          (ast_to_string func)
-                                          (ast_to_string arg)
+  | `Cst i              -> sprintf "(%s)" (string_of_int i)
+  | `Var v              -> sprintf "(%s)" v
+  | `Ctor (str, ast)    -> sprintf "(%s %s)" str (ast_to_string ast)
+  | `Tuple tup          -> sprintf "(%s)" (Utils.string_of_list tup ~sep:", "
+                                                                ast_to_string)
+  | `If (e1, e2, e3)    -> sprintf "(if %s then %s else %s)" (ast_to_string e1)
+                                                             (ast_to_string e2)
+                                                             (ast_to_string e3)
+  | `Fun (pat, expr)    -> sprintf "(fun %s -> %s)" (pat_to_string pat)
+                                                    (ast_to_string expr)
+  | `Let (pat, e1, e2)  -> sprintf "(let %s = %s in %s)" (pat_to_string pat)
+                                                         (ast_to_string e1)
+                                                         (ast_to_string e2)
+  | `Match (expr, arms) -> sprintf "(match %s with %s)" (ast_to_string expr)
+                                   (Utils.string_of_list
+                                     arms ~sep:" | " (fun (pat, ast) ->
+                                                       (sprintf "%s -> %s"
+                                                       (pat_to_string pat)
+                                                       (ast_to_string ast))))
+  | `BinOp (op, e1, e2) -> sprintf "(%s %s %s)" (ast_to_string e1)
+                                                (binop_to_string op)
+                                                (ast_to_string e2)
+  | `Apply (func, arg)  -> sprintf "(%s %s)" (ast_to_string func)
+                                             (ast_to_string arg)
