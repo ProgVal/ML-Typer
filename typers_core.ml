@@ -3,9 +3,38 @@
 open Ast
 open Errors
 open Types
-                            
-(* This didn't change from the previous algorithm *)
-let pat_infer = Typer.pat_infer
+
+(*
+ * Type the pattern of a let form or a function argument
+ * Returns:
+ *  - the type of the whole pattern
+ *  - a type environment for bindings defined in the pattern
+ *)
+let pat_infer sess pat =
+  let h = Hashtbl.create 0 in
+  let rec aux pat = match snd pat with
+    | `PatUnit  -> (`TUnit, [])
+    | `PatCst _ -> (`TInt, [])
+    | `PatWildcard ->
+       let ty = `TVar (next_var ()) in
+       (ty, [])
+    | `PatVar v ->
+       if Hashtbl.mem h v then
+         (* shouldn't the error message highlight the whole pattern ? *)
+         span_fatal sess (fst pat)
+                    (Printf.sprintf "Variable %s is bound several times in this pattern" v)
+       else (
+         Hashtbl.add h v () ;
+         let ty = `TVar (next_var ()) in
+         (ty, [(v, ty)])
+       )
+    | `PatCtor (name, pat) ->
+       let (pat_ty, pat_env) = aux pat in
+       (`TSum [(name, pat_ty)], pat_env)
+    | `PatTup pats ->
+       let (types, env_list) = List.split (List.map aux pats) in
+       (`TTuple types, List.flatten env_list)
+  in aux pat
 
 (*
  * Infers the type of an expression

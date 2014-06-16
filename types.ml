@@ -175,6 +175,7 @@ module Subst: sig
     val apply: t -> ty -> ty
     val merge: t -> (tvar * ty) list -> unit
     val unify: t -> Unif.equ list -> unit
+    val to_alist: t -> (tvar * ty) list
 end = struct
     type t = (tvar, ty) Hashtbl.t
     let empty () = Hashtbl.create 0
@@ -207,4 +208,6 @@ end = struct
     (* Unifies a list of equations and merge them into the substitutions *)
     let unify substs equs =
         merge substs (Unif.unify equs)
+
+    let to_alist substs = Hashtbl.fold (fun k v acc -> (k, v) :: acc) substs []
 end

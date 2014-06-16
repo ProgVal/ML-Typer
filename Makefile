@@ -7,8 +7,8 @@ SOURCES = \
 	errors.ml \
 	ast.ml \
 	types.ml \
-	typer.ml \
-	immtyper.ml \
+	typers_core.ml \
+	typers_simple.ml \
 	main.ml
 
 include OCamlMakefile

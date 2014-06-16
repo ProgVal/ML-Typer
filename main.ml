@@ -41,7 +41,7 @@ let () =
     (* let (sess, result) = sess_open_str "let x = fun y -> y in x 3" in *)
     print_string "FIRST ALGORITHM : " ;
     print_newline () ;
-    let (ty, equs) = Typer.infer sess [] result in
+    let (ty, equs) = Typers_simple.infer sess [] result in
     print_string "type: " ;
     print_string (Types.ty_to_string ty) ;
     print_newline () ;
@@ -74,20 +74,18 @@ let () =
 
     print_string "SECOND ALGORITHM : " ;
     print_newline () ;
-    let (ty, binds) = Immtyper.infer sess [] result in
+    let (ty, binds) = Typers_core.infer sess [] result in
     print_string "type: " ;
     print_string (Types.ty_to_string ty) ;
     print_newline () ;
     print_string "bindings: " ;
     print_newline () ;
-    (* TODO: print subst
-    Hashtbl.iter (fun v t ->
+    List.iter (fun (v, t) ->
                    print_string (Types.ty_to_string (`TVar v)) ;
                    print_string " = " ;
                    print_string (Types.ty_to_string t) ;
                    print_newline ()
                  )
-              binds ;
-    *)
+              (Types.Subst.to_alist binds) ;
     print_newline () ;
     flush stdout
