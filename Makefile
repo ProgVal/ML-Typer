@@ -8,6 +8,7 @@ SOURCES = \
 	ast.ml \
 	types.ml \
 	typers_core.ml \
+	typers_poly.ml \
 	typers_simple.ml \
 	main.ml
 

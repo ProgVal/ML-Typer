@@ -3,7 +3,7 @@
 type tvar = int
 
 (* generates a unique type var *)
-let next_var =
+let next_var: unit -> tvar =
     let n = ref 0 in
     (fun () ->
         let ret = !n in
@@ -60,6 +60,10 @@ let rec ty_to_string (ty: [< ty]) = match ty with
                                         (Printf.sprintf "Ctor%s %s" ctor
                                                         (ty_to_string ty)) cdr)
 
+let rec sty_to_string sty = match sty with
+    | `TSTy t -> Printf.sprintf "[%s]" (ty_to_string t)
+    | `TSForall (v, t) -> Printf.sprintf "∀a%d.%s" v (sty_to_string t)
+
 (*
  * Substitution of a type term to a given type variable inside one type term
  * (substitution is quite trivial as there are no cature problems)
@@ -70,6 +74,38 @@ let rec subst t1 x1 (t: [< ty]) = match t with
   | `TTuple l         -> `TTuple (List.map (subst t1 x1) l)
   | `TFunc (arg, res) -> `TFunc (subst t1 x1 arg, subst t1 x1 res)
   | `TSum l           -> `TSum (List.map (fun (ctor, ty) -> (ctor, subst t1 x1 ty)) l)
+
+type ty_sch = [
+    | `TSTy     of ty
+    | `TSForall of tvar * ty_sch
+    ]
+
+module VarSet = Set.Make (struct
+    type t = tvar
+    let compare = Pervasives.compare
+end)
+
+let rec ty_vars (ty: [< ty]) = match ty with
+    | `TUnit  -> VarSet.empty
+    | `TInt   -> VarSet.empty
+    | `TVar v -> VarSet.singleton v
+    | `TTuple lst -> List.fold_left (fun acc t -> VarSet.union acc (ty_vars t))
+                                    VarSet.empty lst
+    | `TFunc (arg, ret) -> VarSet.union (ty_vars arg) (ty_vars ret)
+    | `TSum ctors -> List.fold_left (fun acc (_, t) -> VarSet.union acc (ty_vars t))
+                                    VarSet.empty ctors
+
+let gen (ty: [< ty]) =
+    let vars = ty_vars ty in
+    VarSet.fold (fun v acc -> `TSForall (v, acc)) vars (`TSTy ty)
+
+let rec inst sch = match sch with
+    | `TSTy t -> t
+    | `TSForall (v, sch) ->
+        let var = next_var () in
+        subst (`TVar var) v (inst sch)
+
+type sch_env = (string * ty_sch) list
 
 (*
  * Unification
