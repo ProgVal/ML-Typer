@@ -131,4 +131,4 @@ let infer sess env ast =
             Subst.unify bindings [(`TFunc (ty_arg, ty_ret), ty_func)] ;
             Subst.apply bindings ty_ret
 
-    in (gen (aux env ast), bindings)
+    in gen (aux env ast)

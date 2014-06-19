@@ -1,7 +1,7 @@
 *.mli
 *.cmi
 *.cmo
-typer
+rtpl
 lexer.ml
 parser.ml
 *.swp

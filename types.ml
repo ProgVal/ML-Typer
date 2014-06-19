@@ -39,7 +39,7 @@ type type_env = (string * ty) list
 let rec ty_to_string (ty: [< ty]) = match ty with
     | `TUnit                    -> "*unit*" ;
     | `TInt                     -> "int" ;
-    | `TVar v                   -> Printf.sprintf "a%d" v
+    | `TVar v                   -> Printf.sprintf "α_%d" v
     | `TTuple []                -> failwith "empty tuple"
 
     | `TTuple (car :: cdr)      ->
@@ -65,7 +65,7 @@ let rec ty_to_string (ty: [< ty]) = match ty with
 
 let rec sty_to_string sty = match sty with
     | `TSTy t          -> Printf.sprintf "[%s]" (ty_to_string t)
-    | `TSForall (v, t) -> Printf.sprintf "∀a%d.%s" v (sty_to_string t)
+    | `TSForall (v, t) -> Printf.sprintf "∀α_%d.%s" v (sty_to_string t)
 
 (*
  * Substitution of a type term to a given type variable inside one type term
@@ -249,6 +249,7 @@ module Subst: sig
     val merge: t -> (tvar * ty) list -> unit
     val unify: t -> Unif.equ list -> unit
     val to_alist: t -> (tvar * ty) list
+    val from_alist: (tvar * ty) list -> t
 end = struct
     type t = (tvar, ty) Hashtbl.t
     let empty () = Hashtbl.create 0
@@ -284,4 +285,13 @@ end = struct
         merge substs (Unif.unify equs)
 
     let to_alist substs = Hashtbl.fold (fun k v acc -> (k, v) :: acc) substs []
+
+    (*
+     * Assumes that type terms of alist do not contain the keys of alist
+     * i.e. already unified
+     *)
+    let from_alist alist =
+        let h = empty () in
+        List.iter (fun (v, ty) -> Hashtbl.add h v ty) alist ;
+        h
 end

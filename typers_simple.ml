@@ -2,18 +2,17 @@
 
 open Ast
 open Errors
-open Types
 
 (* This didn't change from the previous algorithm *)
 let pat_infer = Typers_core.pat_infer
 
 (*
- * Infers the type of an expression
+ * infer_equss the type of an expression
  * Returns:
- *  - the inferred type, that may be a type variable
- *  - an equation system with constraints on the inferred types
+ *  - the infer_equsred type, that may be a type variable
+ *  - an equation system with constraints on the infer_equsred types
  *)
-let rec infer sess env ast = match snd ast with
+let rec infer_equs sess env ast = match snd ast with
     | `Unit  -> (`TUnit, [])
     | `Cst _ -> (`TInt, [])
 
@@ -33,8 +32,8 @@ let rec infer sess env ast = match snd ast with
          * features recursive definition by default
          *)
         let (ty_pat, nenv)      = pat_infer sess pat  in
-        let (ty_expr, sys)      = infer sess (nenv @ env) expr in
-        let (ty_body, sys_body) = infer sess (nenv @ env) body in
+        let (ty_expr, sys)      = infer_equs sess (nenv @ env) expr in
+        let (ty_body, sys_body) = infer_equs sess (nenv @ env) body in
         (ty_body, (ty_expr, ty_pat) :: sys @ sys_body)
 
     | `Fun (pat, body) ->
@@ -45,7 +44,7 @@ let rec infer sess env ast = match snd ast with
          * Constraints will be added on apply
          *)
         let (ty_pat, nenv) = pat_infer sess pat in
-        let (ty_body, sys) = infer sess (nenv @ env) body in
+        let (ty_body, sys) = infer_equs sess (nenv @ env) body in
         (`TFunc (ty_pat, ty_body), sys)
 
     | `If (econd, etrue, efalse) ->
@@ -55,9 +54,9 @@ let rec infer sess env ast = match snd ast with
          *  - add constraint t2 = t3
          *  - add constraint t1 = int
          *)
-        let (ty_econd, sys_cond)   = infer sess env econd  in
-        let (ty_etrue, sys_true)   = infer sess env etrue  in
-        let (ty_efalse, sys_false) = infer sess env efalse in
+        let (ty_econd, sys_cond)   = infer_equs sess env econd  in
+        let (ty_etrue, sys_true)   = infer_equs sess env etrue  in
+        let (ty_efalse, sys_false) = infer_equs sess env efalse in
         let sys = sys_cond @ sys_true @ sys_false in
         (ty_etrue, (ty_econd, `TInt) :: (ty_etrue, ty_efalse) :: sys)
 
@@ -66,7 +65,7 @@ let rec infer sess env ast = match snd ast with
          * typing of a tuple
          * just collects the types and constraints of sub-expressions
          *)
-        let (types, sys_list) = List.split (List.map (infer sess env) lst) in
+        let (types, sys_list) = List.split (List.map (infer_equs sess env) lst) in
         (`TTuple types, List.flatten sys_list)
 
     | `BinOp (_, opl, opr) ->
@@ -75,8 +74,8 @@ let rec infer sess env ast = match snd ast with
          *  - type of the expression is x
          *  - add the constraint that the types of operands must be int
          *)
-        let (ty_opl, sys_l) = infer sess env opl in
-        let (ty_opr, sys_r) = infer sess env opr in
+        let (ty_opl, sys_l) = infer_equs sess env opl in
+        let (ty_opr, sys_r) = infer_equs sess env opr in
         (`TInt, (ty_opl, `TInt) :: (ty_opr, `TInt) :: sys_l @ sys_r)
 
     | `Match (expr, (car :: cdr)) ->
@@ -91,11 +90,11 @@ let rec infer sess env ast = match snd ast with
          *)
         let type_arm (pat, ast) =
             let (ty_pat, nenv)  = pat_infer sess pat          in
-            let (ty_arm, sys)   = infer sess (nenv @ env) ast in
+            let (ty_arm, sys)   = infer_equs sess (nenv @ env) ast in
             (ty_pat, ty_arm, sys)
         in
 
-        let (ty_expr, sys_expr) = infer sess env expr in
+        let (ty_expr, sys_expr) = infer_equs sess env expr in
         let (ty_pat_car, ty_arm_car, sys_car) = type_arm car in
         let sys = List.flatten
                       (List.map
@@ -116,7 +115,13 @@ let rec infer sess env ast = match snd ast with
          *  - introduce a type tr for the result
          *  - add constraint tf = te -> tr
          *)
-        let (ty_func, sys_func) = infer sess env func in
-        let (ty_arg, sys_arg)   = infer sess env arg  in
-        let ty_ret = `TVar (next_var ()) in
+        let (ty_func, sys_func) = infer_equs sess env func in
+        let (ty_arg, sys_arg)   = infer_equs sess env arg  in
+        let ty_ret = `TVar (Types.next_var ()) in
         (ty_ret, (`TFunc (ty_arg, ty_ret), ty_func) :: sys_func @ sys_arg)
+
+let infer sess env ast =
+    let (ty, equs) = infer_equs sess env ast in
+    let alist = Types.Unif.unify equs in
+    let substs = Types.Subst.from_alist alist in
+    Types.Subst.apply substs ty
