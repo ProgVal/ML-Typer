@@ -18,13 +18,18 @@
     let range s e =
         let sp = rhs_start_pos s in
         let ep = rhs_end_pos e in
-        let sp = { fileno = 0;
-                   line = sp.pos_lnum;
-                   col = sp.pos_cnum - sp.pos_bol + 1 } in
-        let ep = { fileno = 0;
-                   line = ep.pos_lnum;
-                   col = ep.pos_cnum - ep.pos_bol + 1 } in
+        let sp = {
+            fileno = 0 ;
+            line = sp.pos_lnum ;
+            col = sp.pos_cnum - sp.pos_bol + 1
+        } in
+        let ep = {
+            fileno = 0 ;
+            line = ep.pos_lnum ;
+            col = ep.pos_cnum - ep.pos_bol + 1
+        } in
         (sp, ep)
+
 %}
 
 %start main

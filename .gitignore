@@ -4,3 +4,4 @@
 typer
 lexer.ml
 parser.ml
+*.swp

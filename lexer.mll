@@ -29,7 +29,7 @@
      *  - an offset to know where to read when we
      *    read from a string
      *  - the positions of the beginning of the lines,
-     *    updated by the lexer.c
+     *    updated by the lexer.
      *)
     type lexmap = {
         mutable contents: string ;
@@ -86,8 +86,9 @@ rule token lexmap = parse
 | [' ' '\t']        { token lexmap lexbuf }
 | '\n'              {
                         let pos = lexbuf.Lexing.lex_curr_p in
-                        lexmap.lines <- Array.append lexmap.lines [|
-                            pos.Lexing.pos_cnum |] ;
+                        lexmap.lines <- Array.append
+                                            lexmap.lines
+                                            [| pos.Lexing.pos_cnum |] ;
                         lexbuf.Lexing.lex_curr_p <- { pos with
                             Lexing.pos_lnum = pos.Lexing.pos_lnum + 1;
                             Lexing.pos_bol = pos.Lexing.pos_cnum;

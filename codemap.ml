@@ -1,4 +1,3 @@
-
 (*
  * In memory "map" of a source file
  * Remembers the name of the file and its contents,
@@ -16,15 +15,6 @@ type filemap = {
  * basically maps of each source files
  *)
 type codemap = filemap array
-
-(*
- * The current compiling session.
- * For now, just contains the codemap, but additional
- * context informations may be added later
- *)
-type session = {
-    cm: codemap ;
-}
 
 (*
  * A position in the code. Defined by:
@@ -50,40 +40,3 @@ type span = (pos * pos)
  * This type decorates an arbitrary type with a span
  *)
 type 's spanned = (span * 's)
-
-(*
- * Returns the position of the beginning of the line
- * that contains the given position
- * The position is returned as a byte offset, starting
- * at 0 (the beginning of the file)
- *)
-let line_pos sess pos =
-    let (file, i) = (pos.fileno, pos.line) in
-    let file = sess.cm.(file) in
-    file.lines.(i - 1)
-
-(*
- * Returns the end of the line, i.e. the last character
- * before the beginning of the next line
- *)
-let line_end sess pos =
-    let (file, i) = (pos.fileno, pos.line) in
-    let file = sess.cm.(file) in
-    if i >= Array.length file.lines
-    then String.length file.contents
-    else file.lines.(i)
-
-(*
- * Returns the line containg the given position
- *)
-let pos_line sess pos =
-    let spos = line_pos sess pos in
-    let epos = line_end sess pos in
-    let file = sess.cm.(pos.fileno) in
-    String.sub file.contents spos (epos - spos - 1)
-
-(*
- * Returns the ith line of the given file
- *)
-let line sess f i =
-    pos_line sess { fileno = f; line = i; col = 1 }
