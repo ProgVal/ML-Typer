@@ -272,7 +272,13 @@ end = struct
         | (v, ty1) :: rest ->
             try
                 let ty2 = Hashtbl.find substs v in
-                merge substs ((Unif.unify [(ty1, ty2)]) @ rest)
+                let nlist = Unif.unify [(ty1, ty2)] in
+                let nrest =
+                  List.fold_left
+                    (fun res (x1, t1) ->
+                       List.map (fun (x2, t2) ->
+                                   (x2, subst t1 x1 t2)) res) rest nlist
+                in merge substs (nlist @ nrest)
             with Not_found ->
                 ( Utils.hashtbl_map_inplace (subst ty1 v) substs ;
                   Hashtbl.add substs v ty1 ;
