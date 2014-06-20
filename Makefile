@@ -11,6 +11,7 @@ SOURCES = \
 	typers_core.ml \
 	typers_poly.ml \
 	typers_simple.ml \
+	typers.ml \
 	rtpl.ml
 
 include OCamlMakefile

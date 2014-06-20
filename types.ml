@@ -27,13 +27,6 @@ type ty = [
 let open_ty (ty: [< ty]): [> ty] = match ty with
     | _ as ty1 -> ty1
 
-(*
- * the typing environment that remembers
- * lexical bindings and their types
- * TODO: change string to a more precise type
- *)
-type type_env = (string * ty) list
-
 (* type pretty-printing *)
 
 let rec ty_to_string (ty: [< ty]) = match ty with
@@ -129,9 +122,14 @@ let rec inst sch = match sch with
     | `TSForall (v, sch) ->
         let var = next_var () in
         subst (`TVar var) v (inst sch)
-
-(* The typing environment for polymorphic typing *)
-type sch_env = (string * ty_sch) list
+(*
+ * the typing environment that remembers
+ * lexical bindings and their types
+ * it it parameterized, so it can be either ty or ty_sch
+ * TODO: change string to a more precise type
+ * TODO: annotate functions that uses it.
+ *)
+type 'a type_env = (string * 'a) list
 
 (*
  * Unification algorithm

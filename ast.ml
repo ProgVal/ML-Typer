@@ -22,6 +22,14 @@ type s_pattern = [
     | `PatTup     of pattern list
 ] and pattern = s_pattern Codemap.spanned
 
+type s_basic_pattern = [
+    | `PatUnit
+    | `PatWildcard
+    | `PatCst     of int
+    | `PatVar     of string
+    | `PatTup     of basic_pattern list
+] and basic_pattern = s_basic_pattern Codemap.spanned
+
 (* internal representation of the AST *)
 type s_ast = [
     | `Unit
@@ -36,6 +44,19 @@ type s_ast = [
     | `Apply   of ast * ast
     | `BinOp   of bin_op * ast * ast
 ] and ast  = s_ast Codemap.spanned
+
+type s_basic_ast = [
+    | `Unit
+    | `Cst     of int
+    | `Var     of string
+    | `Tuple   of basic_ast list
+    | `If      of basic_ast * basic_ast * basic_ast
+    | `Fun     of basic_pattern * basic_ast
+    | `Let     of basic_pattern * basic_ast * basic_ast
+    | `Match   of basic_ast * (basic_pattern * basic_ast) list
+    | `Apply   of basic_ast * basic_ast
+    | `BinOp   of bin_op * basic_ast * basic_ast
+] and basic_ast  = s_basic_ast Codemap.spanned
 
 
 (*
