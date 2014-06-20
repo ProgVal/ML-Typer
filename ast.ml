@@ -31,6 +31,7 @@ type s_basic_pattern = [
 ] and basic_pattern = s_basic_pattern Codemap.spanned
 
 (* internal representation of the AST *)
+
 type s_ast = [
     | `Unit
     | `Cst     of int
@@ -44,6 +45,95 @@ type s_ast = [
     | `Apply   of ast * ast
     | `BinOp   of bin_op * ast * ast
 ] and ast  = s_ast Codemap.spanned
+
+(* a possibly errorenous AST *)
+(* TODO: way too much ASTs *)
+
+type s_err_ast = [
+    | `Unit
+    | `Cst        of int
+    | `Var        of string
+    | `Ctor       of string * err_ast
+    | `Tuple      of err_ast list
+    | `If         of err_ast * err_ast * err_ast
+    | `Fun        of pattern * err_ast
+    | `Let        of pattern * err_ast * err_ast
+    | `Match      of err_ast * (pattern * err_ast) list
+    | `Apply      of err_ast * err_ast
+    | `BinOp      of bin_op * err_ast * err_ast
+    | `ParseError of string
+] and err_ast  = s_err_ast Codemap.spanned
+
+(*
+ * run the parser and checks the returned AST from parse errors
+ * returns an AST that is guaranteed by typing not to contain
+ * any errorneous construction, or None, if parse errors
+ * has been found.
+ * Calls the given callback on each error encountered, which
+ * may be used to just report the error, or do something else,
+ * accordingly.
+ * TODO: if only we had monads... implement in Utils?
+ *)
+
+let rec check ((sp, ast): err_ast) err : ast option = match ast with
+    | (`Unit  as a)
+    | (`Cst _ as a)
+    | (`Var _ as a)          -> Some (sp, a)
+
+    | `Ctor (v, arg)         ->
+        (match check arg err with
+            | Some ast -> Some (sp, (`Ctor (v, ast)))
+            | None     -> None)
+
+    | `Tuple asts            ->
+        (match
+            (List.fold_left
+                (fun acc ast -> match (check ast err, acc) with
+                     | (Some a, Some l) -> Some (a :: l)
+                     | _                -> None)
+                (Some []) asts)
+        with
+            | Some l -> Some (sp, `Tuple l)
+            | None   -> None)
+
+    | `If (ec, et, ef)       ->
+        (match (check ec err, check et err, check ef err) with
+            | (Some ec, Some et, Some ef) -> Some (sp, (`If (ec, et, ef)))
+            | _                           -> None)
+
+    | `Fun (pat, expr)       ->
+        (match check expr err with
+            | Some expr -> Some (sp, (`Fun (pat, expr)))
+            | _         -> None)
+
+    | `Let (pat, expr, body) ->
+        (match (check expr err, check body err) with
+            | (Some expr, Some body) -> Some (sp, (`Let (pat, expr, body)))
+            | _                      -> None)
+
+    | `Match (expr, arms)    ->
+        let expr = check expr err in
+        let arms = List.fold_left
+                       (fun acc (pat, ast) -> match (check ast err, acc) with
+                            | (Some a, Some l) -> Some ((pat, a) :: l)
+                            | _                -> None)
+                       (Some []) arms
+        in (match (expr, arms) with
+            | (Some expr, Some arms) -> Some (sp, (`Match (expr, arms)))
+            | _                      -> None)
+
+    | `Apply (fn, arg)       ->
+        (match (check fn err, check arg err) with
+            | (Some fn, Some arg) -> Some (sp, (`Apply (fn, arg)))
+            | _                   -> None)
+
+    | `BinOp (op, opl, opr)  ->
+        (match (check opl err, check opr err) with
+            | (Some opl, Some opr) -> Some (sp, (`BinOp (op, opl, opr)))
+            | _                    -> None)
+
+    | `ParseError e          -> err sp e ; None
+;;
 
 type s_basic_ast = [
     | `Unit
@@ -74,7 +164,7 @@ let rec simple_pat (sp, pat) = (sp, match pat with
     | _                   -> failwith "invalid construction"
 )
 
-let rec simple_ast (sp, ast) = (sp, match ast with
+let rec simple_ast ((sp, ast): ast) = (sp, match ast with
     | (`Unit  as a)
     | (`Cst _ as a)
     | (`Var _ as a)            -> a

@@ -41,7 +41,7 @@
 %token <int> INT
 %token <string> ID
 %token <string> CTOR
-%type  <Ast.ast> main
+%type  <Ast.err_ast> main
 
 %%
 
@@ -122,6 +122,7 @@ entity:
     | OP CL                         { (range 1 2, `Unit) }
     | OP tuple CL                   { (range 1 3, `Tuple (snd $2)) }
     | OP expr CL                    { $2 }
+    | OP error CL                   { (range 2 2, `ParseError "") }
     ;
 
 tuple:

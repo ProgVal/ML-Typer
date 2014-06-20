@@ -17,9 +17,16 @@ let () =
         flush stdout ;
         (try 
             let (sess, ast) = sess_open () in
-            let ast = Ast.simple_ast ast in
-            let sty = Typer.infer sess [] ast in
-            Printf.printf "type: %s\n" (Types.sty_to_string sty)
+            let ast = Ast.check ast (fun sp e ->
+                                         Errors.span_err sess sp "syntax error")
+            in
+            match ast with
+                | Some ast ->
+                    let ast = Ast.simple_ast ast in
+                    let sty = Typer.infer sess [] ast in
+                    Printf.printf "type: %s\n" (Types.sty_to_string sty)
+
+                | None     -> iter ()
          with Errors.Compile_failure -> ()) ;
         iter () in
     Printf.printf "\t\tRead Type Print Loop version 0.1. %s typer.\n\n"
