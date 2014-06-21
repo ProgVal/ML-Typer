@@ -274,6 +274,10 @@ end = struct
                 let ty2 = Hashtbl.find substs v in
                 let nlist = Unif.unify [(ty1, ty2)] in
                 let nrest =
+                  (*
+                   * this step ensures the invariant; i.e. that variables bound
+                   * is the association list does not appear anywhere else in it
+                   *)
                   List.fold_left
                     (fun res (x1, t1) ->
                        List.map (fun (x2, t2) ->

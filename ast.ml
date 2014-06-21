@@ -213,6 +213,7 @@ let rec simple_ast ((sp, ast): ast) = (sp, match ast with
                  List.map (fun (p, e) -> (simple_pat p, simple_ast e)) arms)
 
     |  `Apply (fn, arg)        -> `Apply (simple_ast fn, simple_ast arg)
+    | `BinOp (op, opl, opr)    -> `BinOp (op, simple_ast opl, simple_ast opr)
     |  _                       -> failwith "invalid construction"
 )
 
