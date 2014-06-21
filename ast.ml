@@ -49,6 +49,16 @@ type s_ast = [
 (* a possibly errorenous AST *)
 (* TODO: way too much ASTs *)
 
+type s_err_pattern = [
+    | `PatUnit
+    | `PatWildcard
+    | `PatCst     of int
+    | `PatVar     of string
+    | `PatCtor    of string * err_pattern
+    | `PatTup     of err_pattern list
+    | `ParseError of string
+] and err_pattern = s_err_pattern Codemap.spanned
+
 type s_err_ast = [
     | `Unit
     | `Cst        of int
@@ -56,9 +66,9 @@ type s_err_ast = [
     | `Ctor       of string * err_ast
     | `Tuple      of err_ast list
     | `If         of err_ast * err_ast * err_ast
-    | `Fun        of pattern * err_ast
-    | `Let        of pattern * err_ast * err_ast
-    | `Match      of err_ast * (pattern * err_ast) list
+    | `Fun        of err_pattern * err_ast
+    | `Let        of err_pattern * err_ast * err_ast
+    | `Match      of err_ast * (err_pattern * err_ast) list
     | `Apply      of err_ast * err_ast
     | `BinOp      of bin_op * err_ast * err_ast
     | `ParseError of string
@@ -74,6 +84,30 @@ type s_err_ast = [
  * accordingly.
  * TODO: if only we had monads... implement in Utils?
  *)
+
+let rec check_pat ((sp, pat): err_pattern) err : pattern option = match pat with
+    | (`PatUnit     as a)
+    | (`PatWildcard as a)
+    | (`PatCst _    as a)
+    | (`PatVar _    as a) -> Some (sp, a)
+
+    | `PatCtor (v, pat) ->
+        (match check_pat pat err with
+            | Some pat -> Some (sp, (`PatCtor (v, pat)))
+            | None     -> None)
+
+    | `PatTup pats ->
+        (match
+            (List.fold_left
+                (fun acc pat -> match (check_pat pat err, acc) with
+                    | (Some a, Some l) -> Some (a :: l)
+                    | _                -> None)
+                (Some []) pats)
+        with
+            | Some l -> Some (sp, `PatTup l)
+            | None   -> None)
+
+    | `ParseError e          -> err sp e ; None
 
 let rec check ((sp, ast): err_ast) err : ast option = match ast with
     | (`Unit  as a)
@@ -102,21 +136,22 @@ let rec check ((sp, ast): err_ast) err : ast option = match ast with
             | _                           -> None)
 
     | `Fun (pat, expr)       ->
-        (match check expr err with
-            | Some expr -> Some (sp, (`Fun (pat, expr)))
-            | _         -> None)
+        (match (check_pat pat err, check expr err) with
+            | (Some pat, Some expr) -> Some (sp, (`Fun (pat, expr)))
+            | _                     -> None)
 
     | `Let (pat, expr, body) ->
-        (match (check expr err, check body err) with
-            | (Some expr, Some body) -> Some (sp, (`Let (pat, expr, body)))
-            | _                      -> None)
+        (match (check_pat pat err, check expr err, check body err) with
+            | (Some p, Some expr, Some body) -> Some (sp, (`Let (p, expr, body)))
+            | _                              -> None)
 
     | `Match (expr, arms)    ->
         let expr = check expr err in
         let arms = List.fold_left
-                       (fun acc (pat, ast) -> match (check ast err, acc) with
-                            | (Some a, Some l) -> Some ((pat, a) :: l)
-                            | _                -> None)
+                       (fun acc (pat, ast) ->
+                            match (check_pat pat err, check ast err, acc) with
+                                | (Some p, Some a, Some l) -> Some ((p, a) :: l)
+                                | _                        -> None)
                        (Some []) arms
         in (match (expr, arms) with
             | (Some expr, Some arms) -> Some (sp, (`Match (expr, arms)))

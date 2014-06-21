@@ -47,6 +47,7 @@
 
 main:
     | expr EOF                      { $1 }
+    | error EOF                     { (range 1 1, `ParseError "") }
     ;
 
 expr:
@@ -107,6 +108,7 @@ pattern:
     | INT                           { (range 1 1, `PatCst $1) }
     | CTOR pattern                  { (range 1 2, `PatCtor ($1, $2)) }
     | OP CL                         { (range 1 2, `PatUnit) }
+    | OP error CL                   { (range 2 2, `ParseError "") }
     | OP pattern CL                 { $2 }
     ;
 
@@ -121,8 +123,8 @@ entity:
     | CTOR expr                     { (range 1 2, `Ctor ($1, $2)) }
     | OP CL                         { (range 1 2, `Unit) }
     | OP tuple CL                   { (range 1 3, `Tuple (snd $2)) }
-    | OP expr CL                    { $2 }
     | OP error CL                   { (range 2 2, `ParseError "") }
+    | OP expr CL                    { $2 }
     ;
 
 tuple:
