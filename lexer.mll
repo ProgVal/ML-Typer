@@ -112,4 +112,4 @@ rule token lexmap = parse
 | '/'               { DIV }
 | eof               { EOF }
 | ";;"              { EOF }
-| _ as c            { failwith (Printf.sprintf "unknown token: %c" c) }
+| _ as c            { UNKNOWN c }

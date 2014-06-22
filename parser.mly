@@ -38,6 +38,7 @@
 %token EQ COMMA PIPE ARR USCO
 %token IF THEN ELSE FUN LET IN MATCH WITH
 %token PLUS MINUS MULT DIV
+%token <char> UNKNOWN
 %token <int> INT
 %token <string> ID
 %token <string> CTOR
