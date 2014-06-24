@@ -1,7 +1,7 @@
 open Codemap
 open Session
 
-exception Compile_failure
+exception CompileFailure
 
 (* Display a pretty error message along with the errorneous piece of code *)
 let span_err sess sp msg =
@@ -27,4 +27,4 @@ let span_err sess sp msg =
 
 let span_fatal sess sp msg =
     span_err sess sp msg ;
-    raise Compile_failure
+    raise CompileFailure

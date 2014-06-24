@@ -42,13 +42,14 @@
 %token <int> INT
 %token <string> ID
 %token <string> CTOR
-%type  <Ast.err_ast> main
+%type  <Ast.err_ast option> main
 
 %%
 
 main:
-    | expr EOF                      { $1 }
-    | error EOF                     { (range 1 1, `ParseError "") }
+    | EOF                           { None }
+    | expr EOF                      { Some $1 }
+    | error EOF                     { Some (range 1 1, `ParseError "") }
     ;
 
 expr:

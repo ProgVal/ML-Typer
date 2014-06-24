@@ -17,8 +17,12 @@ let () =
         flush stdout ;
         (try 
             let (sess, ast) = sess_open () in
-            let ast = Ast.check ast (fun sp e ->
-                                         Errors.span_err sess sp "syntax error")
+            let ast = match ast with
+                | Some ast ->
+                    Ast.check
+                        ast
+                        (fun sp e -> Errors.span_err sess sp "syntax error")
+                | None -> exit 0
             in
             match ast with
                 | Some ast ->
@@ -27,7 +31,7 @@ let () =
                     Printf.printf "type: %s\n" (Types.sty_to_string sty)
 
                 | None     -> iter ()
-         with Errors.Compile_failure -> ()) ;
+         with Errors.CompileFailure -> ()) ;
         iter () in
     Printf.printf "\t\tRead Type Print Loop version 0.1. %s typer.\n\n"
                   Sys.argv.(1) ;
