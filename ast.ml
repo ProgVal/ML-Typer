@@ -82,8 +82,9 @@ type s_err_ast = [
     | `ParseError of string
 ] and err_ast  = s_err_ast Codemap.spanned
 
-type def = [
-    | `Def of err_pattern * err_ast
+type defs = [
+    | `Defs of (err_pattern * err_ast) list
+    | `Expr of err_ast
     | `ParseError of string
 ] Codemap.spanned
 

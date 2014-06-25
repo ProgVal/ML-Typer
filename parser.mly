@@ -43,14 +43,20 @@
 %token <int> INT
 %token <string> ID
 %token <string> CTOR
-%type  <Ast.def list> main
+%type  <Ast.defs> main
 
 %%
 
 main:
-    | EOF                           { [] }
-    | DEF pattern EQ expr main      { (range 1 4, `Def ($2, $4)) :: $5 }
-    | error EOF                     { [(range 1 1, `ParseError "")] }
+    | expr EOF                      { (range 1 1, `Expr $1) }
+    | defs EOF                      { (range 1 1, `Defs $1) }
+    | error EOF                     { (range 1 1, `ParseError "") }
+    | EOF                           { (range 1 1, `Defs []) }
+    ;
+
+defs:
+    | DEF pattern EQ expr           { [($2, $4)] }
+    | DEF pattern EQ expr defs      { ($2, $4) :: $5 }
     ;
 
 expr:
