@@ -7,18 +7,6 @@
 {
     open Parser
 
-    let keywords = Hashtbl.create 0
-    let () =
-        List.iter (fun (kwd, tok) -> Hashtbl.add keywords kwd tok)
-            [("ifz",   IF);
-             ("then",  THEN);
-             ("else",  ELSE);
-             ("fun",   FUN);
-             ("let",   LET);
-             ("in",    IN);
-             ("match", MATCH);
-             ("with",  WITH)]
-
     (*
      * Temporary representation of a codemap
      * being built. The lexmap contains:
@@ -76,6 +64,22 @@
         let count = input_str (lexmap.contents) buf lexmap.offset len in
         lexmap.offset <- lexmap.offset + count ;
         count
+
+    (* The keywords of the language *)
+
+    let keywords = Hashtbl.create 0
+    let () =
+        List.iter (fun (kwd, tok) -> Hashtbl.add keywords kwd tok)
+            [("ifz",   IF);
+             ("then",  THEN);
+             ("else",  ELSE);
+             ("fun",   FUN);
+             ("let",   LET);
+             ("in",    IN);
+             ("match", MATCH);
+             ("with",  WITH);
+             ("def",   DEF)]
+
 }
 
 let id     = ['a'-'z']['A'-'Z''a'-'z''_''0'-'9']*

@@ -46,6 +46,14 @@ type s_ast = [
     | `BinOp   of bin_op * ast * ast
 ] and ast  = s_ast Codemap.spanned
 
+let rec expr_of_pat (sp, pat) = (sp, match pat with
+    | `PatUnit        -> `Unit
+    | `PatWildcard    -> failwith "fixme: this shouldn't exist"
+    | `PatCst c       -> `Cst c
+    | `PatVar v       -> `Var v
+    | `PatCtor (v, e) -> `Ctor (v, expr_of_pat e)
+    | `PatTup t       -> `Tuple (List.map expr_of_pat t))
+
 (* a possibly errorenous AST *)
 (* TODO: way too much ASTs *)
 
@@ -74,6 +82,11 @@ type s_err_ast = [
     | `ParseError of string
 ] and err_ast  = s_err_ast Codemap.spanned
 
+type def = [
+    | `Def of err_pattern * err_ast
+    | `ParseError of string
+] Codemap.spanned
+
 (*
  * run the parser and checks the returned AST from parse errors
  * returns an AST that is guaranteed by typing not to contain
@@ -84,91 +97,67 @@ type s_err_ast = [
  * accordingly.
  * TODO: if only we had monads... implement in Utils?
  *)
+  
 
-let rec check_pat ((sp, pat): err_pattern) err : pattern option = match pat with
+let rec check_pat err ((sp, pat): err_pattern) : pattern Utils.Maybe.t =
+  let open Utils.Maybe in
+  match pat with
     | (`PatUnit     as a)
     | (`PatWildcard as a)
     | (`PatCst _    as a)
-    | (`PatVar _    as a) -> Some (sp, a)
+    | (`PatVar _    as a) -> return (sp, a)
 
-    | `PatCtor (v, pat) ->
-        (match check_pat pat err with
-            | Some pat -> Some (sp, (`PatCtor (v, pat)))
-            | None     -> None)
+    | `PatCtor (v, pat)   ->
+        (check_pat err pat) >>= (fun p -> return (sp, `PatCtor (v, p)))
 
-    | `PatTup pats ->
-        (match
-            (List.fold_left
-                (fun acc pat -> match (check_pat pat err, acc) with
-                    | (Some a, Some l) -> Some (a :: l)
-                    | _                -> None)
-                (Some []) pats)
-        with
-            | Some l -> Some (sp, `PatTup l)
-            | None   -> None)
+    | `PatTup pats        ->
+        (map_m (List.map (check_pat err) pats)) >>=
+            (fun lst -> return (sp, `PatTup lst))
 
-    | `ParseError e          -> err sp e ; None
+    | `ParseError e       -> err sp e ; None
 
-let rec check ((sp, ast): err_ast) err : ast option = match ast with
-    | (`Unit  as a)
-    | (`Cst _ as a)
-    | (`Var _ as a)          -> Some (sp, a)
+let rec check err ((sp, ast): err_ast) : ast option =
+    let open Utils.Maybe in match ast with
+        | (`Unit  as a)
+        | (`Cst _ as a)
+        | (`Var _ as a)          -> return (sp, a)
 
-    | `Ctor (v, arg)         ->
-        (match check arg err with
-            | Some ast -> Some (sp, (`Ctor (v, ast)))
-            | None     -> None)
+        | `Ctor (v, arg)         ->
+            (check err arg) >>= (fun a -> return (sp, `Ctor (v, a)))
 
-    | `Tuple asts            ->
-        (match
-            (List.fold_left
-                (fun acc ast -> match (check ast err, acc) with
-                     | (Some a, Some l) -> Some (a :: l)
-                     | _                -> None)
-                (Some []) asts)
-        with
-            | Some l -> Some (sp, `Tuple l)
-            | None   -> None)
+        | `Tuple asts            ->
+            (map_m (List.map (check err) asts)) >>=
+                (fun lst -> return (sp, `Tuple lst))
 
-    | `If (ec, et, ef)       ->
-        (match (check ec err, check et err, check ef err) with
-            | (Some ec, Some et, Some ef) -> Some (sp, (`If (ec, et, ef)))
-            | _                           -> None)
+        | `If (ec, et, ef)       ->
+            bind3 (check err ec) (check err et) (check err ef)
+                  (fun ec et ef -> return (sp, `If (ec, et, ef)))
 
-    | `Fun (pat, expr)       ->
-        (match (check_pat pat err, check expr err) with
-            | (Some pat, Some expr) -> Some (sp, (`Fun (pat, expr)))
-            | _                     -> None)
+        | `Fun (pat, expr)       ->
+            bind2 (check_pat err pat) (check err expr)
+                  (fun p e -> return (sp, `Fun (p, e)))
 
-    | `Let (pat, expr, body) ->
-        (match (check_pat pat err, check expr err, check body err) with
-            | (Some p, Some expr, Some body) -> Some (sp, (`Let (p, expr, body)))
-            | _                              -> None)
+        | `Let (pat, expr, body) ->
+            bind3 (check_pat err pat) (check err expr) (check err body)
+                  (fun p e b -> Some (sp, `Let (p, e, b)))
 
-    | `Match (expr, arms)    ->
-        let expr = check expr err in
-        let arms = List.fold_left
-                       (fun acc (pat, ast) ->
-                            match (check_pat pat err, check ast err, acc) with
-                                | (Some p, Some a, Some l) -> Some ((p, a) :: l)
-                                | _                        -> None)
-                       (Some []) arms
-        in (match (expr, arms) with
-            | (Some expr, Some arms) -> Some (sp, (`Match (expr, arms)))
-            | _                      -> None)
+        | `Match (expr, arms)    ->
+            bind2 (check err expr)
+                  (map_m (List.map (fun (p, a) ->
+                                        bind2 (check_pat err p) (check err a)
+                                              (fun p a -> return (p, a)))
+                         arms))
+                  (fun expr arms -> return (sp, `Match (expr, arms)))
 
-    | `Apply (fn, arg)       ->
-        (match (check fn err, check arg err) with
-            | (Some fn, Some arg) -> Some (sp, (`Apply (fn, arg)))
-            | _                   -> None)
+        | `Apply (fn, arg)       ->
+            bind2 (check err fn) (check err arg)
+                  (fun f a -> return (sp, `Apply (f, a)))
 
-    | `BinOp (op, opl, opr)  ->
-        (match (check opl err, check opr err) with
-            | (Some opl, Some opr) -> Some (sp, (`BinOp (op, opl, opr)))
-            | _                    -> None)
+        | `BinOp (op, opl, opr)  ->
+            bind2 (check err opl) (check err opr)
+                  (fun l r -> return (sp, `BinOp (op, l, r)))
 
-    | `ParseError e          -> err sp e ; None
-;;
+        | `ParseError e          -> err sp e ; None
 
 type s_basic_ast = [
     | `Unit

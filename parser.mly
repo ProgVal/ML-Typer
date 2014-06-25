@@ -34,6 +34,7 @@
 
 %start main
 %token EOF
+%token DEF
 %token OP CL
 %token EQ COMMA PIPE ARR USCO
 %token IF THEN ELSE FUN LET IN MATCH WITH
@@ -42,14 +43,14 @@
 %token <int> INT
 %token <string> ID
 %token <string> CTOR
-%type  <Ast.err_ast option> main
+%type  <Ast.def list> main
 
 %%
 
 main:
-    | EOF                           { None }
-    | expr EOF                      { Some $1 }
-    | error EOF                     { Some (range 1 1, `ParseError "") }
+    | EOF                           { [] }
+    | DEF pattern EQ expr main      { (range 1 4, `Def ($2, $4)) :: $5 }
+    | error EOF                     { [(range 1 1, `ParseError "")] }
     ;
 
 expr:
