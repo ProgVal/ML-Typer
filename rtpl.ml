@@ -20,41 +20,43 @@ let () =
             let (sess, (sp, defs)) = sess_open () in
             match defs with
                 | `ParseError err ->
-                    Errors.span_err sess sp err ; ()
+                    Errors.span_err sess sp err
 
                 | `Expr ast ->
-                    (Ast.check (Errors.span_err sess) ast) >>=
-                        (fun ast ->
-                            let ast = Ast.simple_ast ast in
-                            let sty = Typer.infer sess [] ast in
-                            Printf.printf "type: %s\n"
-                                          (Types.sty_to_string sty) ;
-                            None ) ; ()
+                    ignore (
+                        (Ast.check (Errors.span_err sess) ast) >>=
+                            (fun ast ->
+                                let ast = Ast.simple_ast ast in
+                                let sty = Typer.infer sess [] ast in
+                                Printf.printf "type: %s\n"
+                                              (Types.sty_to_string sty) ;
+                                None ))
 
                 | `Defs [] -> exit 0
 
                 | `Defs defs ->
                     (List.iter
                         (fun (pat, expr) ->
-                            bind2
-                                (Ast.check_pat (Errors.span_err sess) pat)
-                                (Ast.check (Errors.span_err sess) expr)
-                                (fun pat expr ->
-                                    (*
-                                     * For now, we just tranform defs into
-                                     * lets to pass them to the typer
-                                     * TODO: extract bindings to keep
-                                     * environment
-                                     *)
-                                    let ast =
-                                        (Ast.simple_ast
-                                            (sp, (`Let (pat, expr,
-                                                        Ast.expr_of_pat pat))))
-                                    in
-                                    let sty = Typer.infer sess [] ast in
-                                    Printf.printf "type: %s\n"
-                                                  (Types.sty_to_string sty) ;
-                                    None ) ; ())
+                            ignore (
+                                bind2
+                                    (Ast.check_pat (Errors.span_err sess) pat)
+                                    (Ast.check (Errors.span_err sess) expr)
+                                    (fun pat expr ->
+                                        (*
+                                         * For now, we just tranform defs into
+                                         * lets to pass them to the typer
+                                         * TODO: extract bindings to keep
+                                         * environment
+                                         *)
+                                        let ast =
+                                            (Ast.simple_ast
+                                                (sp, (`Let (pat, expr,
+                                                            Ast.expr_of_pat pat))))
+                                        in
+                                        let sty = Typer.infer sess [] ast in
+                                        Printf.printf "type: %s\n"
+                                                      (Types.sty_to_string sty) ;
+                                        None )))
                         defs)
          with Errors.CompileFailure -> ()) ;
         iter () in
